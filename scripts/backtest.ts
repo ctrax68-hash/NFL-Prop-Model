@@ -5,6 +5,8 @@
  *   npx tsx scripts/backtest.ts --seasons 2024 --weeks 1-9
  */
 
+import "./lib/env";
+
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 

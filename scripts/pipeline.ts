@@ -5,6 +5,8 @@
  *   npx tsx scripts/pipeline.ts --season 2024 --week 5 --provider odds-api
  */
 
+import "./lib/env";
+
 import { DEFAULT_CONFIG } from "../src/lib/engine/config";
 import { createStore } from "../src/lib/db/factory";
 import { loadDataBundle, seasonsToLoad } from "../src/lib/pipeline/bundle";

@@ -6,6 +6,8 @@
  *   npx tsx scripts/ingest.ts --seasons 2022-2025 --refresh
  */
 
+import "./lib/env";
+
 import { computeBaselines } from "../src/lib/ingest/baselines";
 import { computeDefenseRates } from "../src/lib/ingest/defense";
 import { computeTeamRates } from "../src/lib/ingest/teamRates";

@@ -11,6 +11,8 @@
  *   npx tsx scripts/sync-supabase.ts --season 2025 --week 12
  */
 
+import "./lib/env";
+
 import { FileSlateStore } from "../src/lib/db/fileStore";
 import { SupabaseSlateStore } from "../src/lib/db/supabaseStore";
 import { optionalNumber, parseArgs } from "./lib/args";
