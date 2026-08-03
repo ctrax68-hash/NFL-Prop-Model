@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import clsx from "clsx";
 
+import { SlatePicker } from "./SlatePicker";
 import type { SlateSummary } from "@/lib/pipeline/types";
 
 const LINKS = [
@@ -12,24 +14,7 @@ const LINKS = [
   { href: "/backtest", label: "Backtest" },
 ];
 
-/** Slates bucketed by season, newest season first, preserving week order. */
-function seasonGroups(slates: SlateSummary[]): [number, SlateSummary[]][] {
-  const bySeason = new Map<number, SlateSummary[]>();
-  for (const slate of slates) {
-    const group = bySeason.get(slate.season);
-    if (group) group.push(slate);
-    else bySeason.set(slate.season, [slate]);
-  }
-  return [...bySeason.entries()].sort((a, b) => b[0] - a[0]);
-}
-
-export function Nav({
-  slates,
-  current,
-}: {
-  slates: SlateSummary[];
-  current: { season: number; week: number } | null;
-}) {
+export function Nav({ slates }: { slates: SlateSummary[] }) {
   const pathname = usePathname();
 
   return (
@@ -103,37 +88,11 @@ export function Nav({
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          {slates.length > 0 && current ? (
-            <>
-              <label className="sr-only" htmlFor="slate-picker">
-                Select week
-              </label>
-              <select
-                id="slate-picker"
-                defaultValue={`${current.season}-${current.week}`}
-                onChange={(event) => {
-                  const [season, week] = event.target.value.split("-");
-                  window.location.href = `/?season=${season}&week=${week}`;
-                }}
-                className="numeric min-h-[44px] min-w-0 flex-1 truncate rounded-[var(--radius-pill)] border border-[var(--border)] bg-[var(--obsidian-3)] px-3 text-[16px] font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
-              >
-                {/* Grouped by season: a flat list of a hundred-odd weeks is a
-                    picker wheel nobody can find anything in. */}
-                {seasonGroups(slates).map(([season, weeks]) => (
-                  <optgroup key={season} label={String(season)}>
-                    {weeks.map((slate) => (
-                      <option
-                        key={`${slate.season}-${slate.week}`}
-                        value={`${slate.season}-${slate.week}`}
-                      >
-                        {slate.season} · WK {slate.week}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </>
-          ) : null}
+          {/* The picker reads the URL, and `useSearchParams` needs a boundary
+              so the statically prerendered 404 can still build. */}
+          <Suspense fallback={null}>
+            <SlatePicker slates={slates} />
+          </Suspense>
         </div>
       </div>
     </header>

@@ -39,16 +39,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const slates = await listSlates();
-  const current = slates[0]
-    ? { season: slates[0].season, week: slates[0].week }
-    : null;
 
   return (
     <html lang="en">
       <body className="min-h-dvh">
         <Aurora />
         <BetSlipProvider>
-          <Nav slates={slates} current={current} />
+          <Nav slates={slates} />
           {/* Bottom padding clears the tab bar and the slip bar. */}
           <main className="mx-auto max-w-6xl px-3 pt-3 pb-36 sm:px-4 lg:pb-32">
             {children}
