@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
 import type { SlateSummary } from "@/lib/pipeline/types";
@@ -19,8 +19,12 @@ import type { SlateSummary } from "@/lib/pipeline/types";
  * And it splits the choice in two. One list of 107 weeks is a scroll wheel you
  * cannot find anything in; six seasons and eighteen weeks are both glanceable.
  */
+/** The only two views a week actually changes the content of. */
+const SLATE_SCOPED_PATHS = new Set(["/", "/parlay"]);
+
 export function SlatePicker({ slates }: { slates: SlateSummary[] }) {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
 
   const weeksBySeason = useMemo(() => {
@@ -50,7 +54,12 @@ export function SlatePicker({ slates }: { slates: SlateSummary[] }) {
   const week = weeks.includes(urlWeek) ? urlWeek : (weeks[0] ?? slates[0].week);
 
   const go = (nextSeason: number, nextWeek: number) => {
-    router.push(`/?season=${nextSeason}&week=${nextWeek}`);
+    // Board and parlay are both per-slate views, so switching the week from
+    // either one stays put. Tracker, backtest and prop detail aren't scoped to
+    // a single week, so there is nowhere on them for the new week to render —
+    // fall back to the board, same as before this page existed.
+    const base = SLATE_SCOPED_PATHS.has(pathname) ? pathname : "/";
+    router.push(`${base}?season=${nextSeason}&week=${nextWeek}`);
   };
 
   const onSeason = (value: number) => {

@@ -189,14 +189,14 @@ export function Stat({
   );
 }
 
-/**
- * Shown whenever the slate was priced against synthetic lines.
- *
- * The difference between "this model found an edge" and "this model disagreed
- * with a line it invented" is the single most important thing for a user to
- * understand here, so it is never hidden or softened.
- */
-export function SyntheticWarning({ provider }: { provider: string }) {
+/** Amber alert bar for anything that changes how a number should be read. */
+export function WarningCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <div
       className="hairline relative overflow-hidden rounded-[var(--radius)] px-3 py-2.5 sm:px-4 sm:py-3"
@@ -213,15 +213,28 @@ export function SyntheticWarning({ provider }: { provider: string }) {
           !
         </span>
         <div className="text-[11px] leading-snug text-[var(--ink-dim)] sm:text-xs sm:leading-relaxed">
-          <span className="font-bold text-[var(--amber)]">
-            Simulated lines ({provider}).
-          </span>{" "}
-          These prices are generated from this model&apos;s own projections, so
-          the edges below are the simulation&apos;s noise read back — not real
-          betting value. Connect a sportsbook feed to measure genuine edge.
+          <span className="font-bold text-[var(--amber)]">{title}</span>{" "}
+          {children}
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Shown whenever the slate was priced against synthetic lines.
+ *
+ * The difference between "this model found an edge" and "this model disagreed
+ * with a line it invented" is the single most important thing for a user to
+ * understand here, so it is never hidden or softened.
+ */
+export function SyntheticWarning({ provider }: { provider: string }) {
+  return (
+    <WarningCard title={`Simulated lines (${provider}).`}>
+      These prices are generated from this model&apos;s own projections, so the
+      edges below are the simulation&apos;s noise read back — not real betting
+      value. Connect a sportsbook feed to measure genuine edge.
+    </WarningCard>
   );
 }
 

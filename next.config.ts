@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // empty state even though the files are committed.
   outputFileTracingIncludes: {
     "/": ["./data/**"],
+    "/parlay": ["./data/**"],
     "/tracker": ["./data/**"],
     "/backtest": ["./data/**"],
     "/prop/[propId]": ["./data/**"],

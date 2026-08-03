@@ -28,6 +28,16 @@ const TABS = [
     ),
   },
   {
+    href: "/parlay",
+    label: "Parlay",
+    icon: (
+      <>
+        <rect x="5" y="8" width="8" height="8" rx="3" transform="rotate(45 9 12)" />
+        <rect x="11" y="8" width="8" height="8" rx="3" transform="rotate(45 15 12)" />
+      </>
+    ),
+  },
+  {
     href: "/tracker",
     label: "Tracker",
     icon: (
