@@ -28,8 +28,37 @@ export function getStore(): SlateStore {
   return cached;
 }
 
+/**
+ * Every read below is failure-tolerant on purpose.
+ *
+ * `listSlates()` is called from the root layout, so it runs on literally every
+ * page — including the statically prerendered 404. An unreachable or
+ * misconfigured store used to throw straight through that call and take the
+ * entire site down with it, build included. A data backend being down should
+ * cost you the data, not the application: these degrade to an empty slate list
+ * and the UI's existing empty states.
+ *
+ * Errors are logged rather than swallowed silently, so a broken backend is
+ * still visible in the server logs.
+ */
+async function safely<T>(
+  what: string,
+  fallback: T,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(
+      `[data] ${what} failed; serving fallback.`,
+      error instanceof Error ? error.message : error,
+    );
+    return fallback;
+  }
+}
+
 export async function listSlates(): Promise<SlateSummary[]> {
-  return getStore().listSlates();
+  return safely("listSlates", [], () => getStore().listSlates());
 }
 
 /** The most recent slate, or the one requested. */
@@ -37,19 +66,21 @@ export async function getSlate(
   season?: number,
   week?: number,
 ): Promise<SlateSnapshot | null> {
-  const store = getStore();
+  return safely("getSlate", null, async () => {
+    const store = getStore();
 
-  if (season != null && week != null) {
-    return store.loadSnapshot(season, week);
-  }
+    if (season != null && week != null) {
+      return store.loadSnapshot(season, week);
+    }
 
-  const slates = await store.listSlates();
-  if (slates.length === 0) return null;
-  return store.loadSnapshot(slates[0].season, slates[0].week);
+    const slates = await store.listSlates();
+    if (slates.length === 0) return null;
+    return store.loadSnapshot(slates[0].season, slates[0].week);
+  });
 }
 
 export async function listBets(): Promise<PlacedBet[]> {
-  return getStore().listBets();
+  return safely("listBets", [], () => getStore().listBets());
 }
 
 export async function getBacktest(): Promise<BacktestResult | null> {

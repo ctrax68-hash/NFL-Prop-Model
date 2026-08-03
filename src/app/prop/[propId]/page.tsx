@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { DistributionChart } from "@/components/charts";
 import { AddToSlip } from "@/components/AddToSlip";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
+import { EdgeMeter } from "@/components/EdgeMeter";
 import { Card, EdgeBadge, SectionHeading, SyntheticWarning } from "@/components/ui";
 import { getSlate } from "@/lib/data";
 import { densityCurve } from "@/lib/engine/distribution";
@@ -163,7 +164,7 @@ export default async function PropDetailPage({
     <div className="space-y-4">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        className="inline-flex items-center gap-1 text-xs text-[var(--ink-mute)] hover:text-[var(--ink)]"
       >
         ← Back to board
       </Link>
@@ -176,22 +177,36 @@ export default async function PropDetailPage({
         <div className="flex items-start gap-3">
           <PlayerAvatar url={player.headshotUrl} name={player.name} size={56} />
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold">{player.name}</h1>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            <h1 className="display truncate text-[22px] font-black text-[var(--ink)]">
+              {player.name}
+            </h1>
+            <p className="mt-0.5 text-xs text-[var(--ink-mute)]">
               {player.position} · {player.teamId} {isHome ? "vs" : "@"} {opponent}
               {" · "}
               {PROP_LABELS[evaluation.propType]} {evaluation.lineValue}
             </p>
-            <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+            <p className="mt-1 text-[11px] text-[var(--ink-mute)]">
               Implied team total {impliedTotal.toFixed(1)} · {game.weatherType}
               {game.windSpeedMph != null ? ` · ${game.windSpeedMph} mph wind` : ""}
               {" · "}
               {player.gamesSampleN} games of history
             </p>
           </div>
-          <EdgeBadge
-            edge={bestSide === "over" ? evaluation.edgeOver : evaluation.edgeUnder}
-          />
+          <div className="hidden shrink-0 sm:block">
+            <EdgeMeter
+              edge={
+                bestSide === "over" ? evaluation.edgeOver : evaluation.edgeUnder
+              }
+              size={116}
+            />
+          </div>
+          <div className="shrink-0 sm:hidden">
+            <EdgeBadge
+              edge={
+                bestSide === "over" ? evaluation.edgeOver : evaluation.edgeUnder
+              }
+            />
+          </div>
         </div>
 
         <AddToSlip
@@ -250,14 +265,14 @@ export default async function PropDetailPage({
                   <span
                     className={
                       index === chain.length - 1
-                        ? "text-sm font-semibold"
-                        : "text-sm text-[var(--text-secondary)]"
+                        ? "text-sm font-bold text-[var(--ink)]"
+                        : "text-sm text-[var(--ink-dim)]"
                     }
                   >
                     {step.label}
                   </span>
                   {step.note ? (
-                    <span className="block text-[11px] text-[var(--text-muted)]">
+                    <span className="block text-[11px] text-[var(--ink-mute)]">
                       {step.note}
                     </span>
                   ) : null}
@@ -265,8 +280,8 @@ export default async function PropDetailPage({
                 <span
                   className={
                     index === chain.length - 1
-                      ? "tnum shrink-0 text-base font-bold"
-                      : "tnum shrink-0 text-sm font-medium"
+                      ? "numeric shrink-0 text-base font-bold"
+                      : "numeric shrink-0 text-sm font-medium"
                   }
                 >
                   {step.value}
@@ -292,14 +307,14 @@ export default async function PropDetailPage({
               ["Edge under", formatSignedPercent(evaluation.edgeUnder, 2)],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
-                <dt className="text-[var(--text-secondary)]">{label}</dt>
-                <dd className="tnum font-medium">{value}</dd>
+                <dt className="text-[var(--ink-dim)]">{label}</dt>
+                <dd className="numeric font-semibold text-[var(--ink)]">{value}</dd>
               </div>
             ))}
             {evaluation.modelProbPush > 0 ? (
               <div className="flex justify-between gap-3">
-                <dt className="text-[var(--text-secondary)]">Push probability</dt>
-                <dd className="tnum font-medium">
+                <dt className="text-[var(--ink-dim)]">Push probability</dt>
+                <dd className="numeric font-semibold text-[var(--ink)]">
                   {formatPercent(evaluation.modelProbPush, 2)}
                 </dd>
               </div>
@@ -307,12 +322,12 @@ export default async function PropDetailPage({
             {recommendation ? (
               <div className="mt-2 flex justify-between gap-3 border-t pt-2.5">
                 <dt className="font-semibold">Kelly stake</dt>
-                <dd className="tnum font-bold text-[var(--positive)]">
+                <dd className="display text-base font-black text-[var(--mint)] glow-mint">
                   {formatUnits(recommendation.kelly.recommendedUnits)}
                 </dd>
               </div>
             ) : (
-              <p className="mt-2 border-t pt-2.5 text-[11px] text-[var(--text-muted)]">
+              <p className="mt-2 border-t pt-2.5 text-[11px] text-[var(--ink-mute)]">
                 Not recommended — below the {formatPercent(snapshot.config.selection.minEdge)}{" "}
                 edge threshold or filtered on data quality.
               </p>
@@ -327,7 +342,7 @@ export default async function PropDetailPage({
           hint={`Last ${logs.length} results against the current line of ${evaluation.lineValue}.`}
         />
         {logs.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-[var(--ink-dim)]">
             No prior games in the loaded history.
           </p>
         ) : (
@@ -342,13 +357,13 @@ export default async function PropDetailPage({
                     key={`${entry.season}-${entry.week}`}
                     className="flex w-14 shrink-0 flex-col items-center gap-1"
                   >
-                    <span className="tnum text-[11px] font-medium">
+                    <span className="numeric text-[11px] font-semibold text-[var(--ink)]">
                       {value.toFixed(0)}
                     </span>
                     <div className="relative flex h-24 w-full items-end">
                       {/* The line, drawn across the strip. */}
                       <div
-                        className="absolute inset-x-0 z-10 border-t-2 border-dashed border-[var(--text-primary)]/50"
+                        className="absolute inset-x-0 z-10 border-t-2 border-dashed border-[var(--azure)]/70"
                         style={{
                           bottom: `${Math.min(100, (evaluation.lineValue / logMax) * 100)}%`,
                         }}
@@ -358,16 +373,19 @@ export default async function PropDetailPage({
                         style={{
                           height: `${heightPct}%`,
                           background: cleared
-                            ? "var(--series-1)"
-                            : "var(--surface-3)",
+                            ? "linear-gradient(180deg, var(--gold-bright), var(--bronze))"
+                            : "var(--obsidian-3)",
+                          boxShadow: cleared
+                            ? "0 0 10px rgba(255,194,75,0.3)"
+                            : undefined,
                         }}
                         title={`${entry.season} wk ${entry.week} vs ${entry.opponent}: ${value}`}
                       />
                     </div>
-                    <span className="text-[10px] text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--ink-mute)]">
                       W{entry.week}
                     </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--ink-mute)]">
                       {entry.opponent}
                     </span>
                   </div>
@@ -376,7 +394,7 @@ export default async function PropDetailPage({
             </div>
           </div>
         )}
-        <p className="mt-3 text-[11px] text-[var(--text-muted)]">
+        <p className="mt-3 text-[11px] text-[var(--ink-mute)]">
           Filled bars cleared the current line. The dashed rule is{" "}
           {evaluation.lineValue}.
         </p>

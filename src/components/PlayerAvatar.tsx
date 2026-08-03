@@ -48,7 +48,7 @@ export function PlayerAvatar({
   return (
     <div
       className={clsx(
-        "relative shrink-0 overflow-hidden rounded-full bg-[var(--surface-3)]",
+        "relative shrink-0 overflow-hidden rounded-full bg-[var(--obsidian-3)]",
         className,
       )}
       style={{ width: size, height: size }}
@@ -64,7 +64,7 @@ export function PlayerAvatar({
         />
       ) : (
         <span
-          className="grid size-full place-items-center font-semibold text-[var(--text-muted)]"
+          className="grid size-full place-items-center font-semibold text-[var(--ink-mute)]"
           style={{ fontSize: Math.max(10, size * 0.32) }}
           aria-hidden
         >

@@ -1,101 +1,291 @@
 @import "tailwindcss";
 
 /*
- * Dark-first sportsbook theme.
+ * VAULT — a private-bank trading floor, 2040.
  *
- * Chart colours come from the validated data-viz palette (blue / orange / aqua,
- * stepped separately for each surface). The brand accent is deliberately
- * neither DraftKings green nor FanDuel blue.
+ * Warm gold light on deep obsidian glass. Gold carries the luxury; depth and
+ * motion carry the futurism. Dark only — every surface treatment here (glow,
+ * glass, aurora) depends on a dark substrate, so there is no light variant.
+ *
+ * Two golds, deliberately:
+ *   --gold        bright, for UI chrome and text. High contrast on obsidian.
+ *   --series-gold darker, for chart FILLS. Validated against the dark-mode
+ *                 lightness band — the bright gold sits at L 0.85 and fails it.
  */
 
 :root {
   color-scheme: dark;
 
-  --surface-0: #0a0b0e;
-  --surface-1: #101218;
-  --surface-2: #171a22;
-  --surface-3: #1f232d;
-  --border: #262b36;
-  --border-strong: #333a48;
+  /* Surfaces — warm-tinted blacks, never neutral grey */
+  --void: #08060a;
+  --obsidian-1: #100c12;
+  --obsidian-2: #17121a;
+  --obsidian-3: #201a24;
 
-  --text-primary: #f5f6f8;
-  --text-secondary: #a3aab8;
-  --text-muted: #6b7280;
+  /* Brand */
+  --gold: #ffc24b;
+  --gold-bright: #ffd98a;
+  --bronze: #c98a2e;
+  --azure: #5ec8ff;
 
-  --accent: #7c5cff;
-  --accent-hover: #8f74ff;
-  --accent-ink: #ffffff;
+  /* Meaning — mint for +EV, kept distinct from brand gold on purpose:
+     on a 649-row board the whole job is spotting edges, so the signal
+     colour must never be confusable with the chrome. */
+  --mint: #35e39f;
+  --ember: #ff5a6e;
+  --amber: #ffb020;
 
-  --positive: #22c55e;
-  --positive-dim: #14532d;
-  --negative: #ef4444;
-  --negative-dim: #571818;
-  --warning: #f59e0b;
+  /* Ink — warm white, not pure */
+  --ink: #f6f1e8;
+  --ink-dim: #a79c93;
+  --ink-mute: #6e6862;
 
-  /* Validated categorical slots, dark steps. */
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --grid: #23272f;
+  /* Chart series — darker steps, validated for CVD separation and the
+     dark-mode lightness band (worst adjacent ΔE 14.8, target ≥ 8). */
+  --series-1: #b8831f;
+  --series-2: #3d8fcc;
+  --series-3: #1e9e6e;
+  --grid: #221c26;
 
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* Glass */
+  --glass: rgba(23, 18, 26, 0.72);
+  --glass-hi: rgba(255, 194, 75, 0.14);
+  --border: #2a2230;
+  --border-strong: #3d3344;
+
+  /* Glow */
+  --glow-gold: 0 0 24px rgba(255, 194, 75, 0.35);
+  --glow-gold-sm: 0 0 12px rgba(255, 194, 75, 0.28);
+  --glow-mint: 0 0 20px rgba(53, 227, 159, 0.32);
+  --glow-azure: 0 0 20px rgba(94, 200, 255, 0.28);
+
+  --radius: 14px;
+  --radius-sm: 9px;
   --radius-pill: 999px;
-}
 
-:root[data-theme="light"] {
-  color-scheme: light;
-
-  --surface-0: #f6f7f9;
-  --surface-1: #ffffff;
-  --surface-2: #f2f4f7;
-  --surface-3: #e8ebf0;
-  --border: #dfe3ea;
-  --border-strong: #c8cede;
-
-  --text-primary: #0b0d12;
-  --text-secondary: #4b5361;
-  --text-muted: #7b8496;
-
-  --accent: #5b3ce0;
-  --accent-hover: #4b2fc4;
-  --accent-ink: #ffffff;
-
-  --positive: #15803d;
-  --positive-dim: #dcfce7;
-  --negative: #b91c1c;
-  --negative-dim: #fee2e2;
-  --warning: #b45309;
-
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --grid: #e5e8ee;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
 * {
   border-color: var(--border);
 }
 
-html,
-body {
-  background: var(--surface-0);
-  color: var(--text-primary);
+/*
+ * Only `html` paints the base colour.
+ *
+ * The aurora is a fixed child of `body` at a negative z-index. In the root
+ * stacking context those paint *before* block-level backgrounds — so giving
+ * `body` its own opaque background would draw straight over the atmosphere and
+ * flatten the whole page back to black.
+ */
+html {
+  background: var(--void);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
 }
 
 body {
+  background: transparent;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  /* The page itself must never scroll sideways; wide content scrolls inside
-     its own container. */
+  /* The page never scrolls sideways; wide content scrolls in its own box. */
   overflow-x: hidden;
+  position: relative;
 }
 
-/* Numbers line up in columns only with tabular figures. */
-.tnum {
+/* ---------------------------------------------------------------------------
+   Numerics
+   Every figure on this app is a number you compare against another number, so
+   they all get tabular monospace.
+   --------------------------------------------------------------------------- */
+
+.tnum,
+.numeric {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+.numeric {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.display {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+/* ---------------------------------------------------------------------------
+   Glass + hairline borders
+
+   The hairline is a gradient border drawn with mask-composite rather than a
+   flat 1px rule — a solid border at this scale reads cheap, a gradient one
+   catches light like an edge.
+   --------------------------------------------------------------------------- */
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.hairline {
+  position: relative;
+  isolation: isolate;
+}
+
+.hairline::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 194, 75, 0.42),
+    rgba(255, 194, 75, 0.06) 32%,
+    rgba(255, 255, 255, 0.04) 62%,
+    rgba(255, 194, 75, 0.22)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Inset highlight along the top edge — reads as light catching a bevel. */
+.bevel::after {
+  content: "";
+  position: absolute;
+  inset-inline: 12%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 217, 138, 0.5),
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* HUD corner brackets. */
+.hud {
+  position: relative;
+}
+
+.hud::before,
+.hud::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--gold);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hud::before {
+  top: 7px;
+  left: 7px;
+  border-top: 1.5px solid;
+  border-left: 1.5px solid;
+  border-top-left-radius: 3px;
+}
+
+.hud::after {
+  bottom: 7px;
+  right: 7px;
+  border-bottom: 1.5px solid;
+  border-right: 1.5px solid;
+  border-bottom-right-radius: 3px;
+}
+
+.glow-gold {
+  text-shadow:
+    0 0 18px rgba(255, 194, 75, 0.45),
+    0 0 42px rgba(255, 194, 75, 0.18);
+}
+
+.glow-mint {
+  text-shadow: 0 0 16px rgba(53, 227, 159, 0.45);
+}
+
+/* Scanline sweep, used on row hover. */
+.scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 194, 75, 0.09) 48%,
+    transparent 76%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+
+.scan:hover::after {
+  transform: translateX(100%);
+}
+
+/* Rotating conic border, for rows the model actually likes. */
+.pick-ring {
+  position: relative;
+}
+
+.pick-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ring-angle, 0deg),
+    transparent 0deg,
+    rgba(255, 194, 75, 0.75) 40deg,
+    transparent 110deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+  animation: ring-spin 5s linear infinite;
+  pointer-events: none;
+}
+
+@property --ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }
 
 .scroll-x {
@@ -111,26 +301,141 @@ body {
   display: none;
 }
 
-@keyframes slide-up {
-  from {
-    transform: translateY(12px);
-    opacity: 0;
-  }
+/* ---------------------------------------------------------------------------
+   Motion
+   --------------------------------------------------------------------------- */
+
+@keyframes ring-spin {
   to {
-    transform: translateY(0);
-    opacity: 1;
+    --ring-angle: 360deg;
   }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.18s ease-out;
+@keyframes aurora-drift-a {
+  0%,
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8%, 6%, 0) scale(1.15);
+  }
 }
+
+@keyframes aurora-drift-b {
+  0%,
+  100% {
+    transform: translate3d(6%, 8%, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-8%, -6%, 0) scale(0.95);
+  }
+}
+
+@keyframes aurora-drift-c {
+  0%,
+  100% {
+    transform: translate3d(0, 6%, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(10%, -8%, 0) scale(1.2);
+  }
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(53, 227, 159, 0.55);
+  }
+  70% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 7px rgba(53, 227, 159, 0);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.animate-rise {
+  animation: rise-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pulse-dot {
+  animation: pulse-dot 2.2s ease-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+
+   Heavy ambient animation is the point of this design, so it has to be the
+   first thing to go when someone asks for less. Blanket-zeroing durations is
+   not enough: the aurora and ticker are transform loops that would freeze
+   mid-travel, so they get switched off explicitly.
+   --------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+
+  .aurora-layer,
+  .ticker-track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .scan::after {
+    display: none;
+  }
+
+  .pick-ring::before {
+    animation: none !important;
+    background: linear-gradient(
+      140deg,
+      rgba(255, 194, 75, 0.6),
+      rgba(255, 194, 75, 0.15)
+    );
   }
 }

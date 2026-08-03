@@ -99,13 +99,13 @@ export function PropBoard({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search players"
             aria-label="Search players"
-            className="min-w-0 flex-1 rounded-[var(--radius-pill)] border bg-[var(--surface-2)] px-4 py-2 text-sm outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--accent)]"
+            className="min-w-0 flex-1 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-4 py-2 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-mute)] focus:border-[var(--gold)]"
           />
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as SortKey)}
             aria-label="Sort board"
-            className="shrink-0 rounded-[var(--radius-pill)] border bg-[var(--surface-2)] px-3 py-2 text-xs font-medium outline-none focus:border-[var(--accent)]"
+            className="numeric shrink-0 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-3 py-2 text-xs font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
           >
             <option value="edge">Sort: Edge</option>
             <option value="units">Sort: Stake</option>
@@ -162,23 +162,29 @@ export function PropBoard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1 text-xs text-[var(--text-muted)]">
-        <span className="tnum">
-          {filtered.length} of {rows.length} props
+      <div className="flex items-center justify-between px-1">
+        <span className="eyebrow">
+          {filtered.length} / {rows.length} markets
         </span>
-        <span className="tnum">
-          {filtered.filter((row) => row.isRecommended).length} recommended
+        <span className="eyebrow text-[var(--mint)]">
+          {filtered.filter((row) => row.isRecommended).length} model picks
         </span>
       </div>
 
       <Card className="overflow-hidden">
         {filtered.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
+          <p className="px-4 py-12 text-center text-sm text-[var(--ink-dim)]">
             No props match these filters.
           </p>
         ) : (
-          filtered.map((row) => (
-            <PropRow key={row.propId} row={row} season={season} week={week} />
+          filtered.map((row, index) => (
+            <PropRow
+              key={row.propId}
+              row={row}
+              season={season}
+              week={week}
+              index={index}
+            />
           ))
         )}
       </Card>

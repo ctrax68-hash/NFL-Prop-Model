@@ -17,31 +17,31 @@ import {
 export const dynamic = "force-dynamic";
 
 const STATUS_STYLES: Record<PlacedBet["status"], string> = {
-  pending: "bg-[var(--surface-3)] text-[var(--text-secondary)]",
-  won: "bg-[var(--positive-dim)] text-[var(--positive)]",
-  lost: "bg-[var(--negative-dim)] text-[var(--negative)]",
-  push: "bg-[var(--surface-3)] text-[var(--text-secondary)]",
-  void: "bg-[var(--surface-3)] text-[var(--text-muted)]",
+  pending: "bg-[var(--obsidian-3)] text-[var(--gold)] ring-1 ring-[rgba(255,194,75,0.3)]",
+  won: "bg-[rgba(53,227,159,0.12)] text-[var(--mint)]",
+  lost: "bg-[rgba(255,90,110,0.12)] text-[var(--ember)]",
+  push: "bg-[var(--obsidian-3)] text-[var(--ink-dim)]",
+  void: "bg-[var(--obsidian-3)] text-[var(--ink-mute)]",
 };
 
 function BetCard({ bet }: { bet: PlacedBet }) {
   return (
     <div className="flex items-start gap-3 border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{bet.playerName}</p>
-        <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+        <p className="truncate text-sm font-semibold text-[var(--ink)]">{bet.playerName}</p>
+        <p className="mt-0.5 text-[11px] text-[var(--ink-mute)]">
           {sideLabel(bet.side)} {bet.lineValue} {PROP_LABELS[bet.propType]} ·{" "}
-          <span className="tnum">{formatOdds(bet.oddsAmerican)}</span> ·{" "}
+          <span className="numeric">{formatOdds(bet.oddsAmerican)}</span> ·{" "}
           {bet.season} wk {bet.week}
         </p>
-        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-          <span className="tnum">{formatUnits(bet.units)}</span> ·{" "}
-          <span className="tnum">{formatCurrency(bet.stake)}</span> · edge{" "}
-          <span className="tnum">{formatPercent(bet.edge)}</span>
+        <p className="mt-1 text-[11px] text-[var(--ink-mute)]">
+          <span className="numeric">{formatUnits(bet.units)}</span> ·{" "}
+          <span className="numeric">{formatCurrency(bet.stake)}</span> · edge{" "}
+          <span className="numeric">{formatPercent(bet.edge)}</span>
           {bet.actualValue != null ? (
             <>
               {" · actual "}
-              <span className="tnum font-medium text-[var(--text-secondary)]">
+              <span className="numeric font-medium text-[var(--ink-dim)]">
                 {bet.actualValue}
               </span>
             </>
@@ -61,12 +61,12 @@ function BetCard({ bet }: { bet: PlacedBet }) {
         {bet.profitUnits != null ? (
           <span
             className={clsx(
-              "tnum text-sm font-bold",
+              "display text-base font-black",
               bet.profitUnits > 0
-                ? "text-[var(--positive)]"
+                ? "text-[var(--mint)]"
                 : bet.profitUnits < 0
-                  ? "text-[var(--negative)]"
-                  : "text-[var(--text-muted)]",
+                  ? "text-[var(--ember)]"
+                  : "text-[var(--ink-mute)]",
             )}
           >
             {formatSignedUnits(bet.profitUnits)}
@@ -83,7 +83,7 @@ export default async function TrackerPage() {
   if (bets.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-bold tracking-tight">Tracker</h1>
+        <h1 className="display text-[34px] font-black text-[var(--ink)]">TRACKER</h1>
         <EmptyState
           title="No bets logged yet"
           body="Add prices to the bet slip from the board, then log them here to track results, P/L and closing line value."
@@ -112,8 +112,11 @@ export default async function TrackerPage() {
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Tracker</h1>
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+          <div className="eyebrow">Position Log</div>
+          <h1 className="display mt-1 text-[34px] font-black text-[var(--ink)] sm:text-[42px]">
+            TRACKER
+          </h1>
+          <p className="mt-1 text-xs text-[var(--ink-mute)]">
             {bets.length} logged · {pending.length} open
           </p>
         </div>
@@ -124,12 +127,16 @@ export default async function TrackerPage() {
         <Stat
           label="P/L"
           value={formatSignedUnits(profitUnits)}
-          tone={profitUnits > 0 ? "positive" : profitUnits < 0 ? "negative" : "neutral"}
+          numericValue={profitUnits}
+          decimals={2}
+          prefix={profitUnits > 0 ? "+" : ""}
+          suffix="u"
+          tone={profitUnits > 0 ? "mint" : profitUnits < 0 ? "ember" : "plain"}
         />
         <Stat
           label="ROI"
           value={decisive.length > 0 ? formatPercent(roi, 2) : "—"}
-          tone={roi > 0 ? "positive" : roi < 0 ? "negative" : "neutral"}
+          tone={roi > 0 ? "mint" : roi < 0 ? "ember" : "plain"}
           hint={`${stakedUnits.toFixed(1)}u risked`}
         />
         <Stat

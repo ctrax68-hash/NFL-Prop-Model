@@ -1,4 +1,5 @@
 import { PropBoard } from "@/components/PropBoard";
+import { Ticker } from "@/components/Ticker";
 import {
   Card,
   EmptyState,
@@ -7,7 +8,6 @@ import {
   SyntheticWarning,
 } from "@/components/ui";
 import { buildBoardRows, getSlate } from "@/lib/data";
-import { formatPercent, formatUnits } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,41 +45,72 @@ export default async function BoardPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight">
-          {snapshot.season} · Week {snapshot.week}
-        </h1>
-        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-          {snapshot.games.length} games · {snapshot.evaluations.length} props
-          priced · model v{snapshot.configVersion}
-        </p>
+      {/* Ticker sits flush under the nav, breaking the page gutter. */}
+      <div className="-mx-3 -mt-4 sm:-mx-4">
+        <Ticker rows={rows} />
       </div>
+
+      <header className="pt-2">
+        <div className="eyebrow text-[var(--ink-dim)]">
+          Slate · {snapshot.games.length} games · {snapshot.evaluations.length}{" "}
+          markets priced
+        </div>
+        <h1 className="display mt-1.5 text-[38px] font-black sm:text-[52px]">
+          <span className="text-[var(--ink)]">{snapshot.season}</span>
+          <span className="mx-2 text-[var(--border-strong)]">/</span>
+          <span className="glow-gold text-[var(--gold)]">
+            WK {snapshot.week}
+          </span>
+        </h1>
+        <p className="mt-1 text-xs text-[var(--ink-dim)]">
+          Model v{snapshot.configVersion} · quarter-Kelly sizing · edges vs
+          de-vigged fair price
+        </p>
+      </header>
 
       {!snapshot.propsAreReal ? (
         <SyntheticWarning provider={snapshot.propsProvider} />
       ) : null}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Stat label="Recommended" value={String(snapshot.recommendations.length)} />
-        <Stat label="Exposure" value={formatUnits(totalUnits)} />
         <Stat
-          label="Avg edge"
-          value={formatPercent(averageEdge)}
-          tone={averageEdge > 0 ? "positive" : "neutral"}
+          label="Model Picks"
+          value={String(snapshot.recommendations.length)}
+          numericValue={snapshot.recommendations.length}
         />
-        <Stat label="Players" value={String(snapshot.players.length)} />
+        <Stat
+          label="Exposure"
+          value={`${totalUnits.toFixed(2)}u`}
+          numericValue={totalUnits}
+          decimals={2}
+          suffix="u"
+        />
+        <Stat
+          label="Avg Edge"
+          value={`${(averageEdge * 100).toFixed(1)}%`}
+          numericValue={averageEdge * 100}
+          decimals={1}
+          suffix="%"
+          tone="mint"
+        />
+        <Stat
+          label="Players"
+          value={String(snapshot.players.length)}
+          numericValue={snapshot.players.length}
+          tone="plain"
+        />
       </div>
 
       <div>
         <SectionHeading
-          title="Prop board"
-          hint="Tap a price to add it to the slip. Highlighted prices are the model's picks."
+          title="Prop Board"
+          hint="Tap a price to add it to the slip. Ringed rows are the model's picks."
         />
         <PropBoard rows={rows} season={snapshot.season} week={snapshot.week} />
       </div>
 
       <Card className="px-4 py-3">
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+        <p className="text-[11px] leading-relaxed text-[var(--ink-mute)]">
           Edges compare the model&apos;s probability against the book&apos;s
           de-vigged fair price, not the raw implied odds — comparing against raw
           odds understates every edge by roughly half the vig. Stakes are quarter

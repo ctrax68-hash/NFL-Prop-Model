@@ -80,29 +80,53 @@ export function AddToSlip(props: {
             onClick={() => slip.toggle(makeLeg(side))}
             aria-pressed={selected}
             className={clsx(
-              "flex min-h-[64px] flex-col items-center justify-center rounded-[var(--radius-sm)] border px-3 py-2 transition-colors",
+              "flex min-h-[76px] flex-col items-center justify-center rounded-[var(--radius-sm)] border px-3 py-2.5 transition-all duration-200 active:scale-[0.97]",
               selected
-                ? "border-transparent bg-[var(--accent)] text-[var(--accent-ink)]"
-                : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--border-strong)]",
+                ? "border-transparent"
+                : "border-[var(--border)] bg-[rgba(32,26,36,0.6)] hover:border-[var(--border-strong)]",
             )}
+            style={
+              selected
+                ? {
+                    background:
+                      side === "over"
+                        ? "linear-gradient(180deg, var(--gold-bright), var(--gold))"
+                        : "linear-gradient(180deg, #8ad8ff, var(--azure))",
+                    boxShadow:
+                      side === "over"
+                        ? "var(--glow-gold)"
+                        : "var(--glow-azure)",
+                  }
+                : undefined
+            }
           >
             <span
               className={clsx(
-                "text-[11px] font-semibold tracking-wide uppercase",
-                selected ? "opacity-80" : "text-[var(--text-muted)]",
+                "eyebrow",
+                selected ? "text-[#14100a] opacity-80" : undefined,
               )}
             >
               {side === "over" ? "Over" : "Under"} {props.lineValue}
             </span>
-            <span className="tnum text-lg font-bold">{formatOdds(odds)}</span>
+            <span
+              className="display mt-0.5 text-xl font-black"
+              style={{
+                color: selected
+                  ? "#14100a"
+                  : side === "over"
+                    ? "var(--gold)"
+                    : "var(--azure)",
+              }}
+            >
+              {formatOdds(odds)}
+            </span>
             <span
               className={clsx(
-                "tnum text-[11px]",
-                selected ? "opacity-80" : "text-[var(--text-muted)]",
+                "numeric mt-0.5 text-[11px]",
+                selected ? "text-[#14100a] opacity-75" : "text-[var(--ink-mute)]",
               )}
             >
-              model {formatPercent(prob)} · edge{" "}
-              {edge > 0 ? "+" : ""}
+              model {formatPercent(prob)} · edge {edge > 0 ? "+" : ""}
               {(edge * 100).toFixed(1)}%
             </span>
           </button>

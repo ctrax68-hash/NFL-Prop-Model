@@ -12,7 +12,7 @@
 
 import type { DensityPoint } from "@/lib/engine/distribution";
 
-const AXIS = "var(--text-muted)";
+const AXIS = "var(--ink-mute)";
 const GRID = "var(--grid)";
 
 function niceTicks(min: number, max: number, count = 5): number[] {
@@ -92,6 +92,20 @@ export function DistributionChart({
         role="img"
         aria-label={`Projected distribution centred on ${projection.toFixed(1)}, with the sportsbook line at ${line}. The ${winningSide} region is shaded.`}
       >
+        <defs>
+          <linearGradient id="dist-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="var(--gold)" stopOpacity="0.04" />
+          </linearGradient>
+          <filter id="dist-glow" x="-30%" y="-60%" width="160%" height="260%">
+            <feGaussianBlur stdDeviation="3.2" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
         {ticks.map((tick) => (
           <line
             key={tick}
@@ -113,17 +127,18 @@ export function DistributionChart({
         />
 
         {/* Whole distribution, recessive. */}
-        <path d={areaPath(points)} fill="var(--series-1)" opacity={0.14} />
+        <path d={areaPath(points)} fill="url(#dist-fill)" opacity={0.28} />
         {/* The side that wins, emphasised. */}
-        <path d={areaPath(winningPoints)} fill="var(--series-1)" opacity={0.42} />
+        <path d={areaPath(winningPoints)} fill="url(#dist-fill)" opacity={0.95} />
 
         {!discrete ? (
           <path
             d={linePath}
             fill="none"
-            stroke="var(--series-1)"
+            stroke="var(--gold)"
             strokeWidth={2}
             strokeLinejoin="round"
+            filter="url(#dist-glow)"
           />
         ) : (
           points.map((p) => (
@@ -132,7 +147,8 @@ export function DistributionChart({
               cx={sx(p.x)}
               cy={sy(p.y)}
               r={4}
-              fill="var(--series-1)"
+              fill="var(--gold)"
+              filter="url(#dist-glow)"
             >
               <title>{`${p.x}: ${(p.y * 100).toFixed(1)}%`}</title>
             </circle>
@@ -145,7 +161,7 @@ export function DistributionChart({
           x2={lineX}
           y1={padding.top - 4}
           y2={baseline}
-          stroke="var(--text-primary)"
+          stroke="var(--ink)"
           strokeWidth={2}
         />
         <text
@@ -154,7 +170,7 @@ export function DistributionChart({
           textAnchor="middle"
           fontSize={11}
           fontWeight={700}
-          fill="var(--text-primary)"
+          fill="var(--ink)"
         >
           {line}
         </text>
@@ -164,8 +180,8 @@ export function DistributionChart({
           cx={sx(projection)}
           cy={baseline}
           r={5}
-          fill="var(--series-2)"
-          stroke="var(--surface-1)"
+          fill="var(--azure)"
+          stroke="var(--obsidian-1)"
           strokeWidth={2}
         >
           <title>{`Projection ${projection.toFixed(1)}`}</title>
@@ -184,12 +200,12 @@ export function DistributionChart({
           </text>
         ))}
       </svg>
-      <figcaption className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--text-muted)]">
+      <figcaption className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--ink-mute)]">
         <span className="flex items-center gap-1.5">
           <span
             aria-hidden
             className="inline-block h-2 w-3 rounded-[2px]"
-            style={{ background: "var(--series-1)", opacity: 0.42 }}
+            style={{ background: "var(--gold)", opacity: 0.85 }}
           />
           {winningSide === "over" ? "Over" : "Under"} wins
         </span>
@@ -197,7 +213,7 @@ export function DistributionChart({
           <span
             aria-hidden
             className="inline-block size-2 rounded-full"
-            style={{ background: "var(--series-2)" }}
+            style={{ background: "var(--azure)" }}
           />
           Projection {projection.toFixed(1)}
         </span>
@@ -205,7 +221,7 @@ export function DistributionChart({
           <span
             aria-hidden
             className="inline-block h-3 w-0.5"
-            style={{ background: "var(--text-primary)" }}
+            style={{ background: "var(--ink)" }}
           />
           Line {line}
         </span>
@@ -286,23 +302,34 @@ export function EquityCurve({
           />
         ) : null}
 
+        <defs>
+          <filter id="eq-glow" x="-20%" y="-60%" width="140%" height="260%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         <path
           d={path}
           fill="none"
-          stroke="var(--series-1)"
+          stroke="var(--gold)"
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
+          filter="url(#eq-glow)"
         />
 
         {/* Direct-label the endpoint only. */}
         <circle
           cx={sx(last.index)}
           cy={sy(last.cumulativeUnits)}
-          r={4}
-          fill="var(--series-1)"
-          stroke="var(--surface-1)"
+          r={4.5}
+          fill="var(--gold-bright)"
+          stroke="var(--obsidian-1)"
           strokeWidth={2}
+          filter="url(#eq-glow)"
         />
 
         <text
@@ -399,6 +426,7 @@ export function CalibrationChart({
           y2={sy(1)}
           stroke="var(--border-strong)"
           strokeWidth={2}
+          strokeDasharray="4 4"
         />
 
         {bins.map((bin) => (
@@ -407,9 +435,9 @@ export function CalibrationChart({
             cx={sx(bin.predicted)}
             cy={sy(bin.realized)}
             r={radius(bin.n)}
-            fill="var(--series-1)"
-            fillOpacity={0.75}
-            stroke="var(--surface-1)"
+            fill="var(--gold)"
+            fillOpacity={0.8}
+            stroke="var(--obsidian-1)"
             strokeWidth={2}
           >
             <title>
@@ -428,7 +456,7 @@ export function CalibrationChart({
           predicted P(over) → realised
         </text>
       </svg>
-      <figcaption className="mt-1 text-center text-[11px] text-[var(--text-muted)]">
+      <figcaption className="mt-1 text-center text-[11px] text-[var(--ink-mute)]">
         Marks sized by sample count. On the grey diagonal means perfectly
         calibrated.
       </figcaption>
@@ -460,23 +488,26 @@ export function BucketBars({
         const width = (Math.abs(value) / max) * 100;
         return (
           <div key={bucket.label} className="flex items-center gap-3">
-            <span className="tnum w-16 shrink-0 text-[11px] text-[var(--text-secondary)]">
+            <span className="numeric w-16 shrink-0 text-[11px] text-[var(--ink-dim)]">
               {bucket.label}
             </span>
-            <div className="relative h-5 flex-1 overflow-hidden rounded-[4px] bg-[var(--surface-3)]">
+            <div className="relative h-5 flex-1 overflow-hidden rounded-[4px] bg-[var(--obsidian-3)]">
               <div
                 className="h-full rounded-[4px]"
                 style={{
                   width: `${width}%`,
-                  background: value >= 0 ? "var(--series-1)" : "var(--series-2)",
+                  background: value >= 0
+                    ? "linear-gradient(90deg, var(--bronze), var(--gold))"
+                    : "linear-gradient(90deg, #6b2733, var(--ember))",
+                  boxShadow: value >= 0 ? "0 0 12px rgba(255,194,75,0.25)" : undefined,
                 }}
                 title={`${label}: ${format(value)} across ${bucket.bets} bets`}
               />
             </div>
-            <span className="tnum w-16 shrink-0 text-right text-[11px] font-medium">
+            <span className="numeric w-16 shrink-0 text-right text-[11px] font-semibold text-[var(--ink)]">
               {format(value)}
             </span>
-            <span className="tnum w-14 shrink-0 text-right text-[11px] text-[var(--text-muted)]">
+            <span className="numeric w-14 shrink-0 text-right text-[11px] text-[var(--ink-mute)]">
               n={bucket.bets}
             </span>
           </div>

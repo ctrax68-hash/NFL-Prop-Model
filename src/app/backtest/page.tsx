@@ -15,7 +15,7 @@ export default async function BacktestPage() {
   if (!result) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-bold tracking-tight">Backtest</h1>
+        <h1 className="display text-[34px] font-black text-[var(--ink)]">BACKTEST</h1>
         <EmptyState
           title="No backtest yet"
           body="Replay past weeks to grade what the model would have recommended, then come back for ROI, hit rate by edge bucket and — the measurement that actually matters — calibration."
@@ -45,8 +45,11 @@ export default async function BacktestPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Backtest</h1>
-        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+        <div className="eyebrow">Historical Replay</div>
+        <h1 className="display mt-1 text-[34px] font-black text-[var(--ink)] sm:text-[42px]">
+          BACKTEST
+        </h1>
+        <p className="mt-1 text-xs text-[var(--ink-mute)]">
           {result.seasons.join(", ")} · {result.weeksRun} weeks replayed ·{" "}
           {summary.bets.toLocaleString()} bets · {result.voidedProps.toLocaleString()} props
           voided
@@ -55,14 +58,14 @@ export default async function BacktestPage() {
 
       {/* The most important thing on this page: what these numbers do and do
           not establish. */}
-      <Card className="border-[var(--warning)]/35 bg-[var(--warning)]/10 p-4">
-        <h2 className="text-sm font-bold text-[var(--warning)]">
+      <Card className="p-4">
+        <h2 className="text-sm font-black tracking-wide text-[var(--amber)] uppercase">
           How to read this page
         </h2>
-        <div className="mt-2 space-y-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+        <div className="mt-2 space-y-2 text-xs leading-relaxed text-[var(--ink-dim)]">
           {!result.propsAreReal ? (
             <p>
-              <span className="font-semibold text-[var(--text-primary)]">
+              <span className="font-semibold text-[var(--ink)]">
                 ROI here is circular and proves nothing.
               </span>{" "}
               These lines came from the simulated book, which derives them from
@@ -72,7 +75,7 @@ export default async function BacktestPage() {
             </p>
           ) : null}
           <p>
-            <span className="font-semibold text-[var(--text-primary)]">
+            <span className="font-semibold text-[var(--ink)]">
               Calibration is the real test,
             </span>{" "}
             and it is not circular: it is scored against actual NFL results. It
@@ -87,19 +90,25 @@ export default async function BacktestPage() {
         <Stat
           label="Calibration error"
           value={`${(meanCalibrationError * 100).toFixed(2)} pp`}
-          tone={meanCalibrationError < 0.03 ? "positive" : "neutral"}
+          numericValue={meanCalibrationError * 100}
+          decimals={2}
+          suffix=" pp"
+          tone={meanCalibrationError < 0.03 ? "mint" : "gold"}
           hint={`${totalN.toLocaleString()} props scored`}
         />
-        <Stat label="Bets" value={summary.bets.toLocaleString()} />
+        <Stat label="Bets" value={summary.bets.toLocaleString()} numericValue={summary.bets} tone="plain" />
         <Stat
           label="Hit rate"
           value={formatPercent(summary.hitRate)}
+          numericValue={summary.hitRate * 100}
+          decimals={1}
+          suffix="%"
           hint={`${summary.wins}W / ${summary.losses}L / ${summary.pushes}P`}
         />
         <Stat
           label="P/L"
           value={formatSignedUnits(summary.unitsProfit)}
-          tone={summary.unitsProfit > 0 ? "positive" : "negative"}
+          tone={summary.unitsProfit > 0 ? "mint" : "ember"}
           hint={`${summary.unitsStaked.toFixed(0)}u risked${result.propsAreReal ? "" : " · simulated"}`}
         />
       </div>
@@ -114,7 +123,7 @@ export default async function BacktestPage() {
           <div className="scroll-x">
             <table className="w-full min-w-[300px] text-xs">
               <thead>
-                <tr className="text-left text-[var(--text-muted)]">
+                <tr className="text-left text-[var(--ink-mute)]">
                   <th className="py-1.5 font-medium">Bin</th>
                   <th className="py-1.5 text-right font-medium">Predicted</th>
                   <th className="py-1.5 text-right font-medium">Realised</th>
@@ -127,26 +136,26 @@ export default async function BacktestPage() {
                   const error = bin.realized - bin.predicted;
                   return (
                     <tr key={bin.binLow} className="border-t">
-                      <td className="tnum py-1.5">
+                      <td className="numeric py-1.5">
                         {bin.binLow.toFixed(1)}–{bin.binHigh.toFixed(1)}
                       </td>
-                      <td className="tnum py-1.5 text-right">
+                      <td className="numeric py-1.5 text-right">
                         {bin.predicted.toFixed(3)}
                       </td>
-                      <td className="tnum py-1.5 text-right">
+                      <td className="numeric py-1.5 text-right">
                         {bin.realized.toFixed(3)}
                       </td>
                       <td
                         className={
                           Math.abs(error) > 0.05
-                            ? "tnum py-1.5 text-right text-[var(--warning)]"
-                            : "tnum py-1.5 text-right text-[var(--text-secondary)]"
+                            ? "numeric py-1.5 text-right text-[var(--amber)]"
+                            : "numeric py-1.5 text-right text-[var(--ink-dim)]"
                         }
                       >
                         {error > 0 ? "+" : ""}
                         {error.toFixed(3)}
                       </td>
-                      <td className="tnum py-1.5 text-right text-[var(--text-muted)]">
+                      <td className="numeric py-1.5 text-right text-[var(--ink-mute)]">
                         {bin.n.toLocaleString()}
                       </td>
                     </tr>

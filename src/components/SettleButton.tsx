@@ -46,8 +46,8 @@ export function SettleButton() {
         <p
           className={
             status === "error"
-              ? "mt-1 text-[11px] text-[var(--negative)]"
-              : "mt-1 text-[11px] text-[var(--text-muted)]"
+              ? "mt-1 text-[11px] text-[var(--ember)]"
+              : "mt-1 text-[11px] text-[var(--ink-mute)]"
           }
         >
           {message}
