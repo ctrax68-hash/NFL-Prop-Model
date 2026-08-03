@@ -171,23 +171,53 @@ offline.
 |---|---|---|
 | `PROPS_PROVIDER` | `synthetic` | `odds-api` for real lines |
 | `ODDS_API_KEY` | — | required when `PROPS_PROVIDER=odds-api` |
-| `STORE_BACKEND` | file store | `supabase` for hosted Postgres |
+| `STORE_BACKEND` | `file` | `supabase` for hosted Postgres |
 | `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | — | required for the Supabase backend |
 | `BANKROLL` | `10000` | 1 unit = 1% of this |
 
-### Status of the two optional integrations
+### Supabase
 
-Both are written but **neither has been exercised against the live service**, so
-treat them as unverified until they have run once:
+The schema is live on a provisioned project. To point the app at it:
 
-- **The Odds API** — the network policy where this was built blocks
-  `api.the-odds-api.com`, and the player-props endpoint needs a paid key. The
-  parsing is defensive and `parseEventOdds` is separated out for testing, so a
-  response-shape mismatch surfaces as skipped props rather than wrong lines.
-- **Supabase** — the migrations and store are complete, but the project could not
-  be created from this environment (the MCP call required an approval that never
-  came through). Apply `supabase/migrations/*.sql` in order, set the env vars,
-  then `STORE_BACKEND=supabase`.
+```bash
+# 1. Apply the migrations in order (Supabase SQL editor or CLI)
+supabase/migrations/0001_core_schema.sql
+supabase/migrations/0002_row_level_security.sql
+supabase/migrations/0003_props_composite_key.sql
+
+# 2. Add to .env.local (gitignored)
+STORE_BACKEND=supabase
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<Project Settings > API > service_role>
+
+# 3. Backfill any slates you already generated
+npm run sync:supabase
+```
+
+A run is stored twice on purpose: normalised across the child tables for SQL
+analysis, and verbatim as `pipeline_runs.snapshot` for the UI to read back
+without a thirteen-way join. Neither is derived from the other.
+
+**What is verified, and what is not.** Against a live project I confirmed: all
+13 tables created with RLS enabled and a read policy each; every column the
+store writes accepted, using the exact names in `src/lib/db/supabaseStore.ts`;
+the `(run_id, prop_id)` composite key accepting the same prop across two runs;
+a five-table join returning the expected row; real game rows with correct
+spread signs and null handling; and a 1.84 MB `snapshot` jsonb — the size of a
+real slate — round-tripping with key access intact.
+
+Not verified: `supabase-js` authenticating from the app process. That needs a
+service-role key, which no tooling available during the build could retrieve —
+Supabase deliberately withholds secret keys from its MCP server. The schema and
+the field mapping are proven; the connection itself is not.
+
+### The Odds API
+
+Written against the v4 request/response shapes but **not exercised against the
+live service** — the build environment blocks `api.the-odds-api.com` and the
+player-props endpoint needs a paid key. The parsing is defensive and
+`parseEventOdds` is separated out for testing, so a response-shape mismatch
+surfaces as skipped props rather than silently wrong lines.
 
 ---
 

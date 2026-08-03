@@ -6,7 +6,7 @@
  */
 
 import { DEFAULT_CONFIG } from "../src/lib/engine/config";
-import { FileSlateStore } from "../src/lib/db/fileStore";
+import { createStore } from "../src/lib/db/factory";
 import { loadDataBundle, seasonsToLoad } from "../src/lib/pipeline/bundle";
 import { runPipeline } from "../src/lib/pipeline/run";
 import { createPropsProvider } from "../src/lib/ingest/props/factory";
@@ -42,7 +42,9 @@ async function main(): Promise<void> {
     provider,
   });
 
-  const store = new FileSlateStore();
+  const store = createStore(
+    typeof args.store === "string" ? args.store : undefined,
+  );
   await store.saveSnapshot(snapshot);
 
   const units = snapshot.recommendations.reduce(
@@ -57,7 +59,13 @@ async function main(): Promise<void> {
   console.log(`  props priced     ${snapshot.evaluations.length}`);
   console.log(`  recommendations  ${snapshot.recommendations.length}`);
   console.log(`  total exposure   ${units.toFixed(2)}u`);
-  console.log(`  saved to         .data/slates/${season}-${String(week).padStart(2, "0")}.json`);
+  console.log(
+    `  saved to         ${
+      store.kind === "file"
+        ? `.data/slates/${season}-${String(week).padStart(2, "0")}.json`
+        : "Supabase (pipeline_runs + normalised tables)"
+    }`,
+  );
 
   if (!snapshot.propsAreReal) {
     console.log("");

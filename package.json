@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "ingest": "tsx scripts/ingest.ts",
     "pipeline": "tsx scripts/pipeline.ts",
-    "backtest": "tsx scripts/backtest.ts"
+    "backtest": "tsx scripts/backtest.ts",
+    "sync:supabase": "tsx scripts/sync-supabase.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

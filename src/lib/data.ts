@@ -7,7 +7,7 @@
 
 import "server-only";
 
-import { FileSlateStore } from "./db/fileStore";
+import { createStore } from "./db/factory";
 import type { PlacedBet, SlateStore } from "./db/store";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
@@ -18,24 +18,13 @@ import path from "node:path";
 let cached: SlateStore | null = null;
 
 /**
- * Pick the storage backend.
+ * The storage backend for this process, memoised.
  *
  * Defaults to the file store, which needs no setup. Set
  * `STORE_BACKEND=supabase` (plus the Supabase env vars) to use hosted Postgres.
  */
 export function getStore(): SlateStore {
-  if (cached) return cached;
-
-  if (process.env.STORE_BACKEND === "supabase") {
-    // Imported lazily so a missing Supabase config cannot break the file-store
-    // path, which is what the app runs on by default.
-    const { SupabaseSlateStore } =
-      require("./db/supabaseStore") as typeof import("./db/supabaseStore");
-    cached = new SupabaseSlateStore();
-  } else {
-    cached = new FileSlateStore();
-  }
-
+  if (!cached) cached = createStore();
   return cached;
 }
 

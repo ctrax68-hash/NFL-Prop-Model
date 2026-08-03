@@ -122,7 +122,10 @@ export class SupabaseSlateStore implements SlateStore {
       this.client,
       "props",
       snapshot.props.map((prop) => ({
-        prop_id: `${runId}:${prop.propId}`,
+        // Bare id, not `runId:propId`. The composite primary key on
+        // (run_id, prop_id) handles cross-run collisions, and keeping the id
+        // bare is what lets this table join to prop_model_evaluations.
+        prop_id: prop.propId,
         run_id: runId,
         game_id: prop.gameId,
         player_id: prop.playerId,
