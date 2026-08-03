@@ -17,9 +17,11 @@
 
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import path from "node:path";
 
 import type { BacktestResult } from "../src/lib/backtest";
+import { summarise, type SlateSnapshot, type SlateSummary } from "../src/lib/pipeline/types";
 
 const WORKING = path.join(process.cwd(), ".data");
 const SEED = path.join(process.cwd(), "data");
@@ -35,19 +37,59 @@ async function main(): Promise<void> {
 
   await mkdir(path.join(SEED, "slates"), { recursive: true });
 
-  // Slates ship whole — the board, prop detail and tracker all read from them.
   const slateDir = path.join(WORKING, "slates");
-  let slateCount = 0;
+  const summaries: SlateSummary[] = [];
+  let rawBytes = 0;
+  let seedBytes = 0;
+
   if (existsSync(slateDir)) {
-    for (const file of await readdir(slateDir)) {
-      if (!file.endsWith(".json")) continue;
+    const files = (await readdir(slateDir))
+      .filter((f) => f.endsWith(".json") && f !== "index.json")
+      .sort();
+
+    for (const file of files) {
       const body = await readFile(path.join(slateDir, file), "utf8");
-      await writeFile(path.join(SEED, "slates", file), body, "utf8");
-      slateCount += 1;
-      console.log(
-        `  slate ${file.padEnd(14)} ${(body.length / 1024).toFixed(0)} KB`,
-      );
+      const snapshot = JSON.parse(body) as SlateSnapshot;
+      rawBytes += body.length;
+
+      summaries.push(summarise(snapshot));
+
+      // `rejected` is the list of props the selector declined. Nothing in the
+      // UI reads it, and it is the one whole key that is pure dead weight.
+      const trimmed: SlateSnapshot = { ...snapshot, rejected: [] };
+
+      // Gzip is what makes a hundred slates shippable at all: this shape of
+      // JSON compresses about 9x, so the committed seed is ~20 MB instead of
+      // ~190 MB. The store gunzips on read.
+      const packed = gzipSync(Buffer.from(JSON.stringify(trimmed), "utf8"), {
+        level: 9,
+      });
+      await writeFile(path.join(SEED, "slates", `${file}.gz`), packed);
+      seedBytes += packed.length;
     }
+  }
+
+  // The manifest exists so `listSlates()` — which runs in the root layout, on
+  // every page of every request — does not have to open a hundred slates to
+  // read a dozen summary fields off each.
+  summaries.sort((a, b) => b.season - a.season || b.week - a.week);
+  await writeFile(
+    path.join(SEED, "slates", "index.json"),
+    JSON.stringify(summaries),
+    "utf8",
+  );
+
+  const slateCount = summaries.length;
+  if (slateCount > 0) {
+    console.log(
+      `  ${slateCount} slates  ${(rawBytes / 1024 / 1024).toFixed(0)} MB raw ` +
+        `-> ${(seedBytes / 1024 / 1024).toFixed(1)} MB gzipped ` +
+        `(${(rawBytes / seedBytes).toFixed(1)}x)`,
+    );
+    console.log(
+      `  index.json     ${(JSON.stringify(summaries).length / 1024).toFixed(0)} KB ` +
+        `(${slateCount} summaries)`,
+    );
   }
 
   const backtestPath = path.join(WORKING, "backtest.json");

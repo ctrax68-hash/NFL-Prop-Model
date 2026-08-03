@@ -97,6 +97,28 @@ export async function getBacktest(): Promise<BacktestResult | null> {
   return null;
 }
 
+/**
+ * Which slate a prop belongs to, read off the prop's own id.
+ *
+ * A prop id is `<gameId>|<playerId>|<propType>`, and a game id always leads
+ * with `<season>_<week>_`, so the slate is recoverable from the id alone. That
+ * matters because the prop page otherwise has to be told which week to look
+ * in: before this, every link into a slate that was not the newest one — board
+ * rows, the ticker, the tracker, anything bookmarked — resolved against the
+ * latest slate, failed to find the prop and 404'd. With one or two slates that
+ * was nearly invisible; across six seasons it would be the common case.
+ *
+ * Returns null for anything that does not parse, so the caller falls back to
+ * the default slate rather than inventing one.
+ */
+export function slateKeyForProp(
+  propId: string,
+): { season: number; week: number } | null {
+  const match = /^(\d{4})_(\d{1,2})_/.exec(propId);
+  if (!match) return null;
+  return { season: Number(match[1]), week: Number(match[2]) };
+}
+
 /** Everything the board needs about one prop, joined up. */
 export interface BoardRow {
   propId: string;

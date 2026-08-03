@@ -8,6 +8,7 @@
 
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import path from "node:path";
 
 import { summarise, type SlateSnapshot, type SlateSummary } from "../pipeline/types";
@@ -39,8 +40,44 @@ export class FileSlateStore implements SlateStore {
     return path.join(this.root, "bets.json");
   }
 
+  private slateStem(season: number, week: number): string {
+    return path.join(
+      this.slateDir,
+      `${season}-${String(week).padStart(2, "0")}.json`,
+    );
+  }
+
   private slatePath(season: number, week: number): string {
-    return path.join(this.slateDir, `${season}-${String(week).padStart(2, "0")}.json`);
+    return this.slateStem(season, week);
+  }
+
+  /**
+   * Where `listSlates()` gets its answer from.
+   *
+   * Without this it had to open and fully parse every slate just to read a
+   * dozen summary fields off each. That was tolerable at two slates and is not
+   * at a hundred-odd — it runs in the root layout, so it happens on every page
+   * of every request. The seed writes this alongside the slates.
+   */
+  private get indexPath(): string {
+    return path.join(this.slateDir, "index.json");
+  }
+
+  /**
+   * Read a slate, transparently handling the gzipped form.
+   *
+   * The committed seed is gzipped (~9x on this shape of JSON — the difference
+   * between a 21 MB checkout and a 190 MB one); the local working directory
+   * stays plain so it can be inspected with ordinary tools.
+   */
+  private async readJson<T>(file: string): Promise<T | null> {
+    if (existsSync(file)) {
+      return JSON.parse(await readFile(file, "utf8")) as T;
+    }
+    if (existsSync(`${file}.gz`)) {
+      return JSON.parse(gunzipSync(await readFile(`${file}.gz`)).toString("utf8")) as T;
+    }
+    return null;
   }
 
   async saveSnapshot(snapshot: SlateSnapshot): Promise<void> {
@@ -53,27 +90,37 @@ export class FileSlateStore implements SlateStore {
   }
 
   async loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null> {
-    const file = this.slatePath(season, week);
-    if (!existsSync(file)) return null;
-    return JSON.parse(await readFile(file, "utf8")) as SlateSnapshot;
+    return this.readJson<SlateSnapshot>(this.slatePath(season, week));
   }
 
   async listSlates(): Promise<SlateSummary[]> {
     if (!existsSync(this.slateDir)) return [];
-    const files = (await readdir(this.slateDir)).filter((f) => f.endsWith(".json"));
+
+    const indexed = await this.readJson<SlateSummary[]>(this.indexPath);
+    if (indexed) return FileSlateStore.newestFirst(indexed);
+
+    // No manifest: fall back to opening every slate. Correct, and fine for the
+    // handful of weeks a local working directory usually holds.
+    const files = (await readdir(this.slateDir)).filter(
+      (f) => f !== "index.json" && (f.endsWith(".json") || f.endsWith(".json.gz")),
+    );
 
     const summaries = await Promise.all(
       files.map(async (file) => {
-        const snapshot = JSON.parse(
-          await readFile(path.join(this.slateDir, file), "utf8"),
-        ) as SlateSnapshot;
-        return summarise(snapshot);
+        const snapshot = await this.readJson<SlateSnapshot>(
+          path.join(this.slateDir, file.replace(/\.gz$/, "")),
+        );
+        return snapshot ? summarise(snapshot) : null;
       }),
     );
 
-    return summaries.sort(
-      (a, b) => b.season - a.season || b.week - a.week,
+    return FileSlateStore.newestFirst(
+      summaries.filter((s): s is SlateSummary => s !== null),
     );
+  }
+
+  private static newestFirst(summaries: SlateSummary[]): SlateSummary[] {
+    return [...summaries].sort((a, b) => b.season - a.season || b.week - a.week);
   }
 
   async placeBets(bets: readonly PlacedBet[]): Promise<void> {

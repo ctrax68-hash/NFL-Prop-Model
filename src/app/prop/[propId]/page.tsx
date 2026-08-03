@@ -6,7 +6,7 @@ import { AddToSlip } from "@/components/AddToSlip";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { EdgeMeter } from "@/components/EdgeMeter";
 import { Card, EdgeBadge, SectionHeading, SyntheticWarning } from "@/components/ui";
-import { getSlate } from "@/lib/data";
+import { getSlate, slateKeyForProp } from "@/lib/data";
 import { densityCurve } from "@/lib/engine/distribution";
 import { isDiscreteStat } from "@/lib/engine/types";
 import {
@@ -29,9 +29,13 @@ export default async function PropDetailPage({
   const propId = decodeURIComponent(rawPropId);
   const query = await searchParams;
 
+  // An explicit ?season/&week wins; otherwise the prop's own id says which
+  // slate it came from, so a bare /prop/<id> link resolves correctly instead
+  // of being looked up in whichever slate happens to be newest.
+  const fromId = slateKeyForProp(propId);
   const snapshot = await getSlate(
-    query.season ? Number(query.season) : undefined,
-    query.week ? Number(query.week) : undefined,
+    query.season ? Number(query.season) : fromId?.season,
+    query.week ? Number(query.week) : fromId?.week,
   );
   if (!snapshot) notFound();
 
@@ -162,8 +166,9 @@ export default async function PropDetailPage({
 
   return (
     <div className="space-y-4">
+      {/* Back to the slate this prop came from, not to whatever is newest. */}
       <Link
-        href="/"
+        href={`/?season=${snapshot.season}&week=${snapshot.week}`}
         className="-ml-2 inline-flex min-h-[40px] items-center gap-1 px-2 text-xs text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)]"
       >
         ← Back to board

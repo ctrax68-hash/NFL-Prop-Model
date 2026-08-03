@@ -12,6 +12,17 @@ const LINKS = [
   { href: "/backtest", label: "Backtest" },
 ];
 
+/** Slates bucketed by season, newest season first, preserving week order. */
+function seasonGroups(slates: SlateSummary[]): [number, SlateSummary[]][] {
+  const bySeason = new Map<number, SlateSummary[]>();
+  for (const slate of slates) {
+    const group = bySeason.get(slate.season);
+    if (group) group.push(slate);
+    else bySeason.set(slate.season, [slate]);
+  }
+  return [...bySeason.entries()].sort((a, b) => b[0] - a[0]);
+}
+
 export function Nav({
   slates,
   current,
@@ -106,13 +117,19 @@ export function Nav({
                 }}
                 className="numeric min-h-[44px] min-w-0 flex-1 truncate rounded-[var(--radius-pill)] border border-[var(--border)] bg-[var(--obsidian-3)] px-3 text-[16px] font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
               >
-                {slates.map((slate) => (
-                  <option
-                    key={`${slate.season}-${slate.week}`}
-                    value={`${slate.season}-${slate.week}`}
-                  >
-                    {slate.season} · WK {slate.week}
-                  </option>
+                {/* Grouped by season: a flat list of a hundred-odd weeks is a
+                    picker wheel nobody can find anything in. */}
+                {seasonGroups(slates).map(([season, weeks]) => (
+                  <optgroup key={season} label={String(season)}>
+                    {weeks.map((slate) => (
+                      <option
+                        key={`${slate.season}-${slate.week}`}
+                        value={`${slate.season}-${slate.week}`}
+                      >
+                        {slate.season} · WK {slate.week}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </>
