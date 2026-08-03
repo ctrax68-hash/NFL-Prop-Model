@@ -26,7 +26,7 @@ export function Ticker({ rows }: { rows: BoardRow[] }) {
       href={`/prop/${encodeURIComponent(row.propId)}`}
       aria-hidden={hidden}
       tabIndex={hidden ? -1 : undefined}
-      className="group inline-flex shrink-0 items-center gap-2.5 px-4 py-1.5 transition-colors hover:bg-[rgba(255,194,75,0.06)]"
+      className="group inline-flex min-h-[40px] shrink-0 items-center gap-2.5 px-4 transition-colors hover:bg-[rgba(255,194,75,0.06)]"
     >
       <span className="text-[11px] font-semibold tracking-wide text-[var(--ink)]">
         {row.playerName}

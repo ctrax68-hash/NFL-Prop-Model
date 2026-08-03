@@ -99,13 +99,14 @@ export function PropBoard({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search players"
             aria-label="Search players"
-            className="min-w-0 flex-1 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-4 py-2 text-sm text-[var(--ink)] outline-none placeholder:text-[var(--ink-mute)] focus:border-[var(--gold)]"
+            // 16px keeps iOS Safari from zooming the page on focus.
+            className="min-h-[44px] min-w-0 flex-1 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-4 text-[16px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-mute)] focus:border-[var(--gold)]"
           />
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as SortKey)}
             aria-label="Sort board"
-            className="numeric shrink-0 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-3 py-2 text-xs font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
+            className="numeric min-h-[44px] shrink-0 rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-3 text-[16px] font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
           >
             <option value="edge">Sort: Edge</option>
             <option value="units">Sort: Stake</option>

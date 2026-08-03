@@ -164,7 +164,7 @@ export default async function PropDetailPage({
     <div className="space-y-4">
       <Link
         href="/"
-        className="inline-flex items-center gap-1 text-xs text-[var(--ink-mute)] hover:text-[var(--ink)]"
+        className="-ml-2 inline-flex min-h-[40px] items-center gap-1 px-2 text-xs text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)]"
       >
         ← Back to board
       </Link>
@@ -363,7 +363,7 @@ export default async function PropDetailPage({
                     <div className="relative flex h-24 w-full items-end">
                       {/* The line, drawn across the strip. */}
                       <div
-                        className="absolute inset-x-0 z-10 border-t-2 border-dashed border-[var(--azure)]/70"
+                        className="absolute inset-x-0 z-10 border-t-2 border-dashed border-[var(--marker)]/70"
                         style={{
                           bottom: `${Math.min(100, (evaluation.lineValue / logMax) * 100)}%`,
                         }}

@@ -18,8 +18,17 @@ export class FileSlateStore implements SlateStore {
 
   private readonly root: string;
 
-  constructor(root = path.join(process.cwd(), ".data")) {
-    this.root = root;
+  constructor(root?: string) {
+    // `.data/` is the local working directory and is gitignored; `data/` is the
+    // committed seed that ships with a deploy. Prefer live local output, fall
+    // back to the seed so a fresh clone and the deployed site both render.
+    if (root) {
+      this.root = root;
+    } else {
+      const working = path.join(process.cwd(), ".data");
+      const seed = path.join(process.cwd(), "data");
+      this.root = existsSync(path.join(working, "slates")) ? working : seed;
+    }
   }
 
   private get slateDir(): string {

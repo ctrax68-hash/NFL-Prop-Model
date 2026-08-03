@@ -13,9 +13,9 @@ import { useBetSlip, type SlipLeg } from "./BetSlipProvider";
 /**
  * Holographic price button.
  *
- * Over is gold, under is azure — the two sides read as opposites at a glance
- * without needing to parse the O/U glyph. Selected fills solid with an outer
- * glow so a built slip is legible from across the room.
+ * Both sides are neutral until chosen; the accent means "you took this", not
+ * "this is the over". Selected fills solid with an outer glow so a built slip
+ * is legible at a glance while scrolling.
  */
 function OddsButton({
   side,
@@ -35,7 +35,6 @@ function OddsButton({
   onSelect: () => void;
 }) {
   const isOver = side === "over";
-  const hue = isOver ? "var(--gold)" : "var(--azure)";
 
   return (
     <button
@@ -44,20 +43,23 @@ function OddsButton({
       aria-pressed={selected}
       aria-label={`${isOver ? "Over" : "Under"} ${line} at ${formatOdds(odds)}, model edge ${formatPercent(edge)}`}
       className={clsx(
-        "relative flex min-h-[54px] min-w-[76px] flex-1 flex-col items-center justify-center rounded-[var(--radius-sm)] border transition-all duration-200 active:scale-[0.96]",
+        "tap relative flex min-h-[56px] min-w-[80px] flex-1 flex-col items-center justify-center rounded-[var(--radius-sm)] border transition-all duration-200 active:scale-[0.96]",
         selected
           ? "border-transparent"
           : recommended
             ? "border-[rgba(53,227,159,0.4)] bg-[rgba(32,26,36,0.75)] hover:border-[var(--mint)]"
             : "border-[var(--border)] bg-[rgba(32,26,36,0.55)] hover:border-[var(--border-strong)]",
       )}
+      // Over and under are not hue-coded. The side is already stated on the
+      // chip ("O 10.5" / "U 10.5"), and giving each its own colour meant two
+      // adjacent hues doing no work — the accent is worth more spent on the
+      // one thing that is genuinely state: which side you've actually taken.
       style={
         selected
           ? {
-              background: isOver
-                ? "linear-gradient(180deg, var(--gold-bright), var(--gold))"
-                : "linear-gradient(180deg, #8ad8ff, var(--azure))",
-              boxShadow: isOver ? "var(--glow-gold)" : "var(--glow-azure)",
+              background:
+                "linear-gradient(180deg, var(--gold-bright), var(--gold))",
+              boxShadow: "var(--glow-gold)",
             }
           : undefined
       }
@@ -65,14 +67,14 @@ function OddsButton({
       <span
         className={clsx(
           "eyebrow",
-          selected ? "text-[#14100a] opacity-80" : "text-[var(--ink-mute)]",
+          selected ? "text-[#04101f] opacity-80" : "text-[var(--ink-mute)]",
         )}
       >
         {isOver ? "O" : "U"} {line}
       </span>
       <span
-        className="numeric text-sm font-bold"
-        style={{ color: selected ? "#14100a" : hue }}
+        className="numeric text-[15px] font-bold"
+        style={{ color: selected ? "#04101f" : "var(--ink)" }}
       >
         {formatOdds(odds)}
       </span>
@@ -116,7 +118,7 @@ export function PropRow({
   return (
     <div
       className={clsx(
-        "scan animate-rise relative flex items-center gap-3 border-b border-[var(--border)] px-3 py-3 last:border-b-0",
+        "scan animate-rise relative flex items-center gap-2.5 border-b border-[var(--border)] px-2.5 py-3 last:border-b-0 sm:gap-3 sm:px-3",
         "hover:bg-[rgba(255,194,75,0.035)]",
         row.isRecommended && "pick-ring",
       )}
@@ -131,7 +133,10 @@ export function PropRow({
       <div className="min-w-0 flex-1">
         <Link
           href={`/prop/${encodeURIComponent(row.propId)}`}
-          className="block truncate text-sm font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+          // The hit area is padded out to the 44px thumb minimum and pulled
+          // back with a matching negative margin, so the row stays visually
+          // tight while still being tappable without aiming.
+          className="-my-2.5 flex min-h-[44px] items-center truncate py-2.5 text-[15px] font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
         >
           {row.playerName}
         </Link>

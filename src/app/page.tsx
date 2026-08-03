@@ -50,19 +50,22 @@ export default async function BoardPage({
         <Ticker rows={rows} />
       </div>
 
-      <header className="pt-2">
+      {/* On a phone the hero is a cost, not a feature: every pixel here is a
+          pixel of board the user has to scroll past. The display type and the
+          model byline both scale up only once there's room for them. */}
+      <header className="pt-1">
         <div className="eyebrow text-[var(--ink-dim)]">
           Slate · {snapshot.games.length} games · {snapshot.evaluations.length}{" "}
           markets priced
         </div>
-        <h1 className="display mt-1.5 text-[38px] font-black sm:text-[52px]">
+        <h1 className="display mt-1 text-[28px] font-black sm:text-[52px]">
           <span className="text-[var(--ink)]">{snapshot.season}</span>
           <span className="mx-2 text-[var(--border-strong)]">/</span>
           <span className="glow-gold text-[var(--gold)]">
             WK {snapshot.week}
           </span>
         </h1>
-        <p className="mt-1 text-xs text-[var(--ink-dim)]">
+        <p className="mt-1 hidden text-xs text-[var(--ink-dim)] sm:block">
           Model v{snapshot.configVersion} · quarter-Kelly sizing · edges vs
           de-vigged fair price
         </p>

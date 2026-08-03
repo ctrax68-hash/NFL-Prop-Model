@@ -17,47 +17,59 @@
   color-scheme: dark;
 
   /* Surfaces — warm-tinted blacks, never neutral grey */
-  --void: #08060a;
-  --obsidian-1: #100c12;
-  --obsidian-2: #17121a;
-  --obsidian-3: #201a24;
+  --void: #05080f;
+  --obsidian-1: #0b1220;
+  --obsidian-2: #111a2c;
+  --obsidian-3: #18233a;
 
   /* Brand */
-  --gold: #ffc24b;
-  --gold-bright: #ffd98a;
-  --bronze: #c98a2e;
-  --azure: #5ec8ff;
+  --gold: #4da3ff;
+  --gold-bright: #8fc9ff;
+  --bronze: #2b6fc4;
+  /* Chart markers that sit on top of the blue distribution — the projection
+     dot and the line indicator. Amber, not the old violet: violet against the
+     brand blue measured ΔE 5.5 under deutan and 11.2 even with normal colour
+     vision (floor is 15), i.e. two marks nobody could reliably tell apart.
+     This pair measures 28.3 / 30.6. */
+  --marker: #d9821f;
 
   /* Meaning — mint for +EV, kept distinct from brand gold on purpose:
      on a 649-row board the whole job is spotting edges, so the signal
      colour must never be confusable with the chrome. */
-  --mint: #35e39f;
-  --ember: #ff5a6e;
-  --amber: #ffb020;
+  --mint: #2fe39b;
+  --ember: #ff5f7a;
+  --amber: #ffb84d;
 
   /* Ink — warm white, not pure */
-  --ink: #f6f1e8;
-  --ink-dim: #a79c93;
-  --ink-mute: #6e6862;
+  --ink: #eaf1fb;
+  --ink-dim: #97a6bd;
+  --ink-mute: #63718a;
 
   /* Chart series — darker steps, validated for CVD separation and the
      dark-mode lightness band (worst adjacent ΔE 14.8, target ≥ 8). */
-  --series-1: #b8831f;
-  --series-2: #3d8fcc;
+  --series-1: #2f7fd4;
+  --series-2: #c2701e;
   --series-3: #1e9e6e;
-  --grid: #221c26;
+  --grid: #16203400;
 
   /* Glass */
-  --glass: rgba(23, 18, 26, 0.72);
-  --glass-hi: rgba(255, 194, 75, 0.14);
-  --border: #2a2230;
-  --border-strong: #3d3344;
+  --glass: rgba(17, 26, 44, 0.72);
+  /* Chrome that content scrolls *underneath* — nav, tab bar, bet slip.
+     Deliberately opaque, not glass: backdrop-blur is not something to rely on
+     (Android Chrome drops it under battery saver, and it is unsupported in
+     enough embedded webviews to matter), and without the blur even 4%
+     translucency leaves bold row text legibly ghosting through the tab
+     labels. Chrome you navigate by has to be readable unconditionally. */
+  --chrome: #0a101c;
+  --glass-hi: rgba(77, 163, 255, 0.14);
+  --border: #1e2b44;
+  --border-strong: #2e405f;
 
   /* Glow */
-  --glow-gold: 0 0 24px rgba(255, 194, 75, 0.35);
-  --glow-gold-sm: 0 0 12px rgba(255, 194, 75, 0.28);
-  --glow-mint: 0 0 20px rgba(53, 227, 159, 0.32);
-  --glow-azure: 0 0 20px rgba(94, 200, 255, 0.28);
+  --glow-gold: 0 0 24px rgba(77, 163, 255, 0.35);
+  --glow-gold-sm: 0 0 12px rgba(77, 163, 255, 0.28);
+  --glow-mint: 0 0 20px rgba(47, 227, 155, 0.32);
+  --glow-marker: 0 0 20px rgba(217, 130, 31, 0.28);
 
   --radius: 14px;
   --radius-sm: 9px;
@@ -86,6 +98,9 @@ html {
 
 body {
   background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   /* The page never scrolls sideways; wide content scrolls in its own box. */
@@ -139,6 +154,10 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
+.chrome {
+  background: var(--chrome);
+}
+
 .hairline {
   position: relative;
   isolation: isolate;
@@ -152,10 +171,10 @@ body {
   padding: 1px;
   background: linear-gradient(
     160deg,
-    rgba(255, 194, 75, 0.42),
-    rgba(255, 194, 75, 0.06) 32%,
+    rgba(77, 163, 255, 0.42),
+    rgba(77, 163, 255, 0.06) 32%,
     rgba(255, 255, 255, 0.04) 62%,
-    rgba(255, 194, 75, 0.22)
+    rgba(77, 163, 255, 0.22)
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -179,7 +198,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 217, 138, 0.5),
+    rgba(143, 201, 255, 0.5),
     transparent
   );
   pointer-events: none;
@@ -219,12 +238,12 @@ body {
 
 .glow-gold {
   text-shadow:
-    0 0 18px rgba(255, 194, 75, 0.45),
-    0 0 42px rgba(255, 194, 75, 0.18);
+    0 0 18px rgba(77, 163, 255, 0.45),
+    0 0 42px rgba(77, 163, 255, 0.18);
 }
 
 .glow-mint {
-  text-shadow: 0 0 16px rgba(53, 227, 159, 0.45);
+  text-shadow: 0 0 16px rgba(47, 227, 155, 0.45);
 }
 
 /* Scanline sweep, used on row hover. */
@@ -240,7 +259,7 @@ body {
   background: linear-gradient(
     100deg,
     transparent 20%,
-    rgba(255, 194, 75, 0.09) 48%,
+    rgba(77, 163, 255, 0.09) 48%,
     transparent 76%
   );
   transform: translateX(-100%);
@@ -265,7 +284,7 @@ body {
   background: conic-gradient(
     from var(--ring-angle, 0deg),
     transparent 0deg,
-    rgba(255, 194, 75, 0.75) 40deg,
+    rgba(77, 163, 255, 0.75) 40deg,
     transparent 110deg,
     transparent 360deg
   );
@@ -286,6 +305,37 @@ body {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
+}
+
+/* Safe areas — the bottom tab bar and slip sit on the iPhone home
+   indicator without these. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Touch targets. Anything tappable clears 44px, the iOS minimum. */
+.tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Momentum scrolling for the horizontal chip rails. */
+.scroll-x,
+.no-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.snap-rail {
+  scroll-snap-type: x proximity;
+}
+
+.snap-rail > * {
+  scroll-snap-align: start;
 }
 
 .scroll-x {
@@ -376,11 +426,11 @@ body {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(53, 227, 159, 0.55);
+    box-shadow: 0 0 0 0 rgba(47, 227, 155, 0.55);
   }
   70% {
     opacity: 0.85;
-    box-shadow: 0 0 0 7px rgba(53, 227, 159, 0);
+    box-shadow: 0 0 0 7px rgba(47, 227, 155, 0);
   }
 }
 
@@ -434,8 +484,8 @@ body {
     animation: none !important;
     background: linear-gradient(
       140deg,
-      rgba(255, 194, 75, 0.6),
-      rgba(255, 194, 75, 0.15)
+      rgba(77, 163, 255, 0.6),
+      rgba(77, 163, 255, 0.15)
     );
   }
 }

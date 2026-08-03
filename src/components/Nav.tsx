@@ -22,7 +22,7 @@ export function Nav({
   const pathname = usePathname();
 
   return (
-    <header className="glass sticky top-0 z-30 border-b border-[var(--border)]">
+    <header className="chrome sticky top-0 z-30 border-b border-[var(--border)]">
       {/* Gold filament along the bottom edge. */}
       <div
         aria-hidden
@@ -34,20 +34,20 @@ export function Nav({
       />
 
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
+        <Link href="/" className="tap flex shrink-0 items-center gap-2">
           <span
             aria-hidden
-            className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-[11px] font-black text-[#14100a]"
+            className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-[11px] font-black text-[#04101f]"
             style={{
               background:
                 "linear-gradient(145deg, var(--gold-bright), var(--bronze))",
               boxShadow: "var(--glow-gold-sm)",
             }}
           >
-            V
+            N
           </span>
           <span
-            className="hidden text-sm font-black tracking-[0.16em] sm:block"
+            className="text-sm font-black tracking-[0.14em]"
             style={{
               background:
                 "linear-gradient(180deg, var(--gold-bright), var(--bronze))",
@@ -56,11 +56,11 @@ export function Nav({
               backgroundClip: "text",
             }}
           >
-            VAULT
+            NFL EDGE
           </span>
         </Link>
 
-        <nav className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        <nav className="hidden shrink-0 items-center gap-0.5 lg:flex lg:gap-1">
           {LINKS.map((link) => {
             const active =
               link.href === "/"
@@ -72,7 +72,7 @@ export function Nav({
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "relative px-2 py-1.5 text-xs font-semibold transition-colors sm:px-3",
+                  "relative flex min-h-[40px] items-center px-2 text-xs font-semibold transition-colors sm:px-3",
                   active
                     ? "text-[var(--gold)]"
                     : "text-[var(--ink-mute)] hover:text-[var(--ink)]",
@@ -104,7 +104,7 @@ export function Nav({
                   const [season, week] = event.target.value.split("-");
                   window.location.href = `/?season=${season}&week=${week}`;
                 }}
-                className="numeric min-w-0 flex-1 truncate rounded-[var(--radius-pill)] border border-[var(--border)] bg-[rgba(32,26,36,0.7)] px-2 py-1.5 text-[11px] font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)] sm:px-3 sm:text-xs"
+                className="numeric min-h-[44px] min-w-0 flex-1 truncate rounded-[var(--radius-pill)] border border-[var(--border)] bg-[var(--obsidian-3)] px-3 text-[16px] font-medium text-[var(--ink-dim)] outline-none focus:border-[var(--gold)]"
               >
                 {slates.map((slate) => (
                   <option

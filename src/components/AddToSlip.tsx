@@ -89,13 +89,8 @@ export function AddToSlip(props: {
               selected
                 ? {
                     background:
-                      side === "over"
-                        ? "linear-gradient(180deg, var(--gold-bright), var(--gold))"
-                        : "linear-gradient(180deg, #8ad8ff, var(--azure))",
-                    boxShadow:
-                      side === "over"
-                        ? "var(--glow-gold)"
-                        : "var(--glow-azure)",
+                      "linear-gradient(180deg, var(--gold-bright), var(--gold))",
+                    boxShadow: "var(--glow-gold)",
                   }
                 : undefined
             }
@@ -103,27 +98,21 @@ export function AddToSlip(props: {
             <span
               className={clsx(
                 "eyebrow",
-                selected ? "text-[#14100a] opacity-80" : undefined,
+                selected ? "text-[#04101f] opacity-80" : undefined,
               )}
             >
               {side === "over" ? "Over" : "Under"} {props.lineValue}
             </span>
             <span
               className="display mt-0.5 text-xl font-black"
-              style={{
-                color: selected
-                  ? "#14100a"
-                  : side === "over"
-                    ? "var(--gold)"
-                    : "var(--azure)",
-              }}
+              style={{ color: selected ? "#04101f" : "var(--ink)" }}
             >
               {formatOdds(odds)}
             </span>
             <span
               className={clsx(
                 "numeric mt-0.5 text-[11px]",
-                selected ? "text-[#14100a] opacity-75" : "text-[var(--ink-mute)]",
+                selected ? "text-[#04101f] opacity-75" : "text-[var(--ink-mute)]",
               )}
             >
               model {formatPercent(prob)} · edge {edge > 0 ? "+" : ""}

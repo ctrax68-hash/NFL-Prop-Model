@@ -57,22 +57,27 @@ export function BetSlip() {
       {status === "saved" && message ? (
         <div
           role="status"
-          className="fixed inset-x-0 top-3 z-50 mx-auto w-fit rounded-[var(--radius-pill)] bg-[var(--mint)] px-4 py-2 text-xs font-bold text-[#06130d] shadow-lg"
+          className="fixed inset-x-0 top-3 z-50 mx-auto w-fit rounded-[var(--radius-pill)] bg-[var(--mint)] px-4 py-2 text-xs font-bold text-[#04101f] shadow-lg"
         >
           {message}
         </div>
       ) : null}
 
       {/* Collapsed bar — always reachable with a thumb on mobile. */}
-      <div className="glass fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] lg:left-auto lg:w-[400px] lg:border-l">
+      <div className="chrome fixed inset-x-0 bottom-0 z-40 rounded-t-[20px] border-t border-[var(--border)] lg:left-auto lg:w-[400px] lg:rounded-t-none lg:border-l">
+        {/* Grab handle — the affordance people expect on a bottom sheet. */}
+        <div
+          aria-hidden
+          className="mx-auto mt-2 h-1 w-9 rounded-full bg-[var(--border-strong)] lg:hidden"
+        />
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+          className="tap flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
         >
           <span className="flex items-center gap-2">
-            <span className="grid size-6 place-items-center rounded-full text-xs font-black text-[#14100a]" style={{background:"linear-gradient(145deg, var(--gold-bright), var(--gold))", boxShadow:"var(--glow-gold-sm)"}}>
+            <span className="grid size-6 place-items-center rounded-full text-xs font-black text-[#04101f]" style={{background:"linear-gradient(145deg, var(--gold-bright), var(--gold))", boxShadow:"var(--glow-gold-sm)"}}>
               {slip.legs.length}
             </span>
             <span className="text-sm font-bold tracking-[0.1em] text-[var(--ink)] uppercase">Bet Slip</span>
@@ -83,7 +88,7 @@ export function BetSlip() {
         </button>
 
         {open ? (
-          <div className="animate-sheet max-h-[65vh] overflow-y-auto border-t border-[var(--border)] px-4 py-3">
+          <div className="animate-sheet pb-safe max-h-[68vh] overflow-y-auto border-t border-[var(--border)] px-4 py-3">
             <ul className="space-y-2">
               {slip.legs.map((leg) => (
                 <li
@@ -107,7 +112,7 @@ export function BetSlip() {
                       type="button"
                       onClick={() => slip.remove(leg.propId, leg.side)}
                       aria-label={`Remove ${leg.playerName} ${leg.side}`}
-                      className="shrink-0 rounded-full px-2 text-lg leading-none text-[var(--ink-mute)] transition-colors hover:text-[var(--ember)]"
+                      className="-my-2 -mr-2 grid size-11 shrink-0 place-items-center rounded-full text-lg leading-none text-[var(--ink-mute)] transition-colors hover:text-[var(--ember)]"
                     >
                       ×
                     </button>
@@ -128,7 +133,10 @@ export function BetSlip() {
                             Number(event.target.value),
                           )
                         }
-                        className="numeric w-20 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--obsidian-1)] px-2 py-1 text-xs text-[var(--ink)] outline-none focus:border-[var(--gold)]"
+                        // 16px is not a style choice: iOS Safari zooms the whole
+                        // page in when you focus an input with a smaller font,
+                        // and the user has to pinch back out every time.
+                        className="numeric min-h-[40px] w-20 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--obsidian-1)] px-2 text-[16px] text-[var(--ink)] outline-none focus:border-[var(--gold)]"
                       />
                     </label>
                     <div className="text-right">
@@ -171,7 +179,7 @@ export function BetSlip() {
                 step={100}
                 value={slip.bankroll}
                 onChange={(event) => slip.setBankroll(Number(event.target.value))}
-                className="numeric w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-2 py-1 text-xs text-[var(--ink)] outline-none focus:border-[var(--gold)]"
+                className="numeric min-h-[40px] w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[rgba(32,26,36,0.6)] px-2 text-[16px] text-[var(--ink)] outline-none focus:border-[var(--gold)]"
               />
             </label>
 
@@ -198,11 +206,11 @@ export function BetSlip() {
               <p className="mt-2 text-[11px] text-[var(--ember)]">{message}</p>
             ) : null}
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex gap-2 pb-1">
               <button
                 type="button"
                 onClick={slip.clear}
-                className="rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2.5 text-xs font-medium text-[var(--ink-dim)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--ink)]"
+                className="tap rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-xs font-medium text-[var(--ink-dim)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--ink)]"
               >
                 Clear
               </button>
@@ -210,7 +218,7 @@ export function BetSlip() {
                 type="button"
                 onClick={place}
                 disabled={status === "saving"}
-                className="flex-1 rounded-[var(--radius-sm)] px-3 py-2.5 text-xs font-black tracking-wide text-[#14100a] uppercase transition-all hover:brightness-110 disabled:opacity-60" style={{background:"linear-gradient(180deg, var(--gold-bright), var(--gold))", boxShadow:"var(--glow-gold)"}}
+                className="tap flex-1 rounded-[var(--radius-sm)] px-3 text-[13px] font-black tracking-wide text-[#04101f] uppercase transition-all hover:brightness-110 disabled:opacity-60" style={{background:"linear-gradient(180deg, var(--gold-bright), var(--gold))", boxShadow:"var(--glow-gold)"}}
               >
                 {status === "saving" ? "Logging…" : "Log bets to tracker"}
               </button>

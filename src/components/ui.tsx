@@ -115,9 +115,9 @@ export function Pill({
       onClick={onClick}
       aria-pressed={active}
       className={clsx(
-        "shrink-0 rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all duration-200",
+        "inline-flex min-h-[40px] shrink-0 items-center rounded-[var(--radius-pill)] border px-3.5 text-xs font-medium whitespace-nowrap transition-all duration-200 active:scale-[0.97]",
         active
-          ? "border-transparent bg-gradient-to-b from-[var(--gold-bright)] to-[var(--gold)] font-semibold text-[#1a1206]"
+          ? "border-transparent bg-gradient-to-b from-[var(--gold-bright)] to-[var(--gold)] font-semibold text-[#04101f]"
           : "border-[var(--border)] bg-[rgba(32,26,36,0.6)] text-[var(--ink-dim)] hover:border-[var(--bronze)] hover:text-[var(--ink)]",
         className,
       )}
@@ -159,11 +159,11 @@ export function Stat({
           : "var(--gold)";
 
   return (
-    <Card className="overflow-hidden px-4 py-3.5">
+    <Card className="overflow-hidden px-3 py-2.5 sm:px-4 sm:py-3.5">
       <div className="eyebrow">{label}</div>
       <div
         className={clsx(
-          "display mt-1.5 text-[26px] font-bold sm:text-[30px]",
+          "display mt-1 text-[21px] font-bold sm:mt-1.5 sm:text-[30px]",
           tone === "gold" && "glow-gold",
           tone === "mint" && "glow-mint",
         )}
@@ -199,7 +199,7 @@ export function Stat({
 export function SyntheticWarning({ provider }: { provider: string }) {
   return (
     <div
-      className="hairline relative overflow-hidden rounded-[var(--radius)] px-4 py-3"
+      className="hairline relative overflow-hidden rounded-[var(--radius)] px-3 py-2.5 sm:px-4 sm:py-3"
       style={{
         background:
           "linear-gradient(100deg, rgba(255,176,32,0.12), rgba(255,176,32,0.04))",
@@ -212,7 +212,7 @@ export function SyntheticWarning({ provider }: { provider: string }) {
         >
           !
         </span>
-        <div className="text-xs leading-relaxed text-[var(--ink-dim)]">
+        <div className="text-[11px] leading-snug text-[var(--ink-dim)] sm:text-xs sm:leading-relaxed">
           <span className="font-bold text-[var(--amber)]">
             Simulated lines ({provider}).
           </span>{" "}

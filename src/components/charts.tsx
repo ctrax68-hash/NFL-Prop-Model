@@ -180,7 +180,7 @@ export function DistributionChart({
           cx={sx(projection)}
           cy={baseline}
           r={5}
-          fill="var(--azure)"
+          fill="var(--marker)"
           stroke="var(--obsidian-1)"
           strokeWidth={2}
         >
@@ -213,7 +213,7 @@ export function DistributionChart({
           <span
             aria-hidden
             className="inline-block size-2 rounded-full"
-            style={{ background: "var(--azure)" }}
+            style={{ background: "var(--marker)" }}
           />
           Projection {projection.toFixed(1)}
         </span>

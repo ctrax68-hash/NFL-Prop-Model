@@ -84,9 +84,17 @@ export async function listBets(): Promise<PlacedBet[]> {
 }
 
 export async function getBacktest(): Promise<BacktestResult | null> {
-  const file = path.join(process.cwd(), ".data", "backtest.json");
-  if (!existsSync(file)) return null;
-  return JSON.parse(await readFile(file, "utf8")) as BacktestResult;
+  // Local working output first, committed seed second — same precedence as
+  // FileSlateStore, so dev and deploy behave identically.
+  for (const dir of [".data", "data"]) {
+    const file = path.join(process.cwd(), dir, "backtest.json");
+    if (existsSync(file)) {
+      return safely("getBacktest", null, async () =>
+        JSON.parse(await readFile(file, "utf8")) as BacktestResult,
+      );
+    }
+  }
+  return null;
 }
 
 /** Everything the board needs about one prop, joined up. */

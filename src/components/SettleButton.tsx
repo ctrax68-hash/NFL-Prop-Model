@@ -38,7 +38,7 @@ export function SettleButton() {
         type="button"
         onClick={settle}
         disabled={status === "working"}
-        className="rounded-[var(--radius-pill)] border px-3 py-1.5 text-xs font-semibold hover:border-[var(--border-strong)] disabled:opacity-60"
+        className="min-h-[40px] rounded-[var(--radius-pill)] border border-[var(--border)] px-4 text-xs font-semibold text-[var(--ink-dim)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--ink)] disabled:opacity-60"
       >
         {status === "working" ? "Grading…" : "Grade open bets"}
       </button>
