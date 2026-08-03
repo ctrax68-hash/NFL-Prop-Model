@@ -1,0 +1,28 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# nflverse download cache (large CSV/parquet files)
+.cache/
+
+# Generated slates, backtests and the local bet log. Rebuild with:
+#   npx tsx scripts/pipeline.ts --season <year> --week <n>
+#   npx tsx scripts/backtest.ts --seasons 2023-2024 --out .data/backtest.json
+.data/
+
+# env
+.env
+.env.local
+.env*.local
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-error.log*
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+coverage/
