@@ -1,0 +1,82 @@
+name: Scrape props and store to Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "Season year to run (leave blank to auto-detect)"
+        required: false
+        type: string
+      week:
+        description: "Week number to run (leave blank to auto-detect)"
+        required: false
+        type: string
+  schedule:
+    # Tuesday 14:00 UTC — after Monday Night Football has finished, catches
+    # the opening line for the week.
+    - cron: "0 14 * * 2"
+    # Thursday 16:00 UTC — before that night's kickoff, catches Thursday
+    # Night Football's own closing line.
+    - cron: "0 16 * * 4"
+    # Sunday 15:00 UTC — before the early kickoff window, catches the
+    # closing line for the rest of the week's games.
+    - cron: "0 15 * * 0"
+
+concurrency:
+  group: scrape-and-store
+  cancel-in-progress: false
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Resolve season/week to run
+        id: week
+        run: |
+          if [ -n "${{ github.event.inputs.season }}" ] && [ -n "${{ github.event.inputs.week }}" ]; then
+            echo "season=${{ github.event.inputs.season }}" >> "$GITHUB_OUTPUT"
+            echo "week=${{ github.event.inputs.week }}" >> "$GITHUB_OUTPUT"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          set +e
+          OUTPUT=$(npx tsx scripts/current-week.ts)
+          CODE=$?
+          set -e
+
+          if [ $CODE -eq 0 ]; then
+            echo "$OUTPUT" >> "$GITHUB_OUTPUT"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ $CODE -eq 3 ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "No current NFL week — nothing to scrape today."
+          else
+            exit $CODE
+          fi
+
+      - name: Run pipeline (nflverse + real odds) and write to Supabase
+        if: steps.week.outputs.should_run == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_API_BOOKMAKERS: ${{ vars.ODDS_API_BOOKMAKERS }}
+          ODDS_API_REGIONS: ${{ vars.ODDS_API_REGIONS }}
+          BANKROLL: ${{ vars.BANKROLL }}
+        run: |
+          npx tsx scripts/pipeline.ts \
+            --season ${{ steps.week.outputs.season }} \
+            --week ${{ steps.week.outputs.week }} \
+            --store supabase \
+            --provider odds-api
