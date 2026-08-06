@@ -109,8 +109,12 @@ export function createPropsProvider(
   return new OddsApiPropsProvider(
     {
       apiKey,
-      bookmakers: process.env.ODDS_API_BOOKMAKERS ?? "draftkings,fanduel",
-      regions: process.env.ODDS_API_REGIONS ?? "us",
+      // `||`, not `??`: an unset GitHub Actions repo Variable still shows up
+      // as an env var here, just set to "" rather than being absent. `??`
+      // only falls back on null/undefined, so "" silently reached the API as
+      // an empty `regions=` param and got a hard 422 INVALID_REGION back.
+      bookmakers: process.env.ODDS_API_BOOKMAKERS || "draftkings,fanduel",
+      regions: process.env.ODDS_API_REGIONS || "us",
     },
     createNameResolver(players),
     matchGame,

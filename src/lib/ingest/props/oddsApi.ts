@@ -13,6 +13,7 @@
  * silently wrong lines.
  */
 
+import { fetchWithTimeout } from "../fetchWithTimeout";
 import type { PropLine, PropType } from "../../engine/types";
 import type { PropsProvider, PropsProviderContext } from "./provider";
 
@@ -165,7 +166,7 @@ export class OddsApiPropsProvider implements PropsProvider {
         url.searchParams.set("bookmakers", this.options.bookmakers);
       }
 
-      const response = await fetch(url);
+      const response = await fetchWithTimeout(url);
       if (!response.ok) {
         throw new Error(
           `The Odds API returned ${response.status} for event ${event.id}: ${await response.text()}`,
@@ -184,7 +185,7 @@ export class OddsApiPropsProvider implements PropsProvider {
     const url = new URL(`${API_BASE}/sports/${SPORT_KEY}/events`);
     url.searchParams.set("apiKey", this.options.apiKey);
 
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     if (!response.ok) {
       throw new Error(
         `The Odds API returned ${response.status} listing events: ${await response.text()}`,

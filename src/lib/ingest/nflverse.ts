@@ -13,6 +13,7 @@ import path from "node:path";
 
 import Papa from "papaparse";
 
+import { fetchWithTimeout } from "./fetchWithTimeout";
 import type { WeatherType } from "../engine/types";
 
 const NFLVERSE_RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
@@ -39,7 +40,7 @@ async function fetchCsvText(url: string, options: FetchOptions = {}): Promise<st
     return readFile(cachePath, "utf8");
   }
 
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   }
