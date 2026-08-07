@@ -22,14 +22,16 @@ import { DEFAULT_CONFIG } from "../src/lib/engine/config";
 import {
   gammaCdf,
   gammaParams,
+  HURDLE_MEAN_LOG_OFFSET,
   leagueSigma,
   negBinomialParams,
   negBinomialPmf,
   solveTruncatedNormalLocation,
   yardsFamily,
 } from "../src/lib/engine/distribution";
-import { linearFit, normalCdf } from "../src/lib/engine/math";
-import { loadPlayerWeeksForSeasons } from "../src/lib/ingest/nflverse";
+import { linearFit, logisticFit, normalCdf, sigmoid } from "../src/lib/engine/math";
+import { nameKey } from "../src/lib/ingest/baselines";
+import { loadDataBundle } from "../src/lib/pipeline/bundle";
 import { isDiscreteStat, type StatType } from "../src/lib/engine/types";
 import { parseArgs, parseSeasonRange } from "./lib/args";
 
@@ -47,6 +49,10 @@ const EXTRACT: Record<StatType, (row: PlayerWeekLike) => number> = {
 interface PlayerWeekLike {
   playerId: string;
   seasonType: string;
+  name: string;
+  team: string;
+  season: number;
+  week: number;
   receivingYards: number;
   rushingYards: number;
   passingYards: number;
@@ -166,9 +172,20 @@ async function main(): Promise<void> {
   );
 
   console.log(`Loading player weeks for ${seasons.join(", ")}...`);
-  const rows = (await loadPlayerWeeksForSeasons(seasons)) as PlayerWeekLike[];
+  // Exactly the requested seasons — unlike the pipeline's own callers, this
+  // has no reason to pull `seasonsToLoad`'s extra prior-history seasons.
+  const bundle = await loadDataBundle(seasons);
+  const rows = bundle.playerWeeks as unknown as PlayerWeekLike[];
   const regular = rows.filter((r) => r.seasonType === "REG");
   console.log(`${regular.length.toLocaleString()} regular-season player-weeks`);
+
+  const snapIndex = new Map<string, number>();
+  for (const snap of bundle.snapCounts) {
+    snapIndex.set(
+      `${snap.season}|${snap.week}|${snap.team}|${nameKey(snap.player)}`,
+      snap.offensePct,
+    );
+  }
 
   for (const stat of Object.keys(EXTRACT) as StatType[]) {
     const extract = EXTRACT[stat];
@@ -281,6 +298,14 @@ async function main(): Promise<void> {
     }
   }
 
+  if (args.zero) {
+    reportZeroInflationBySnapShare(regular, snapIndex);
+  }
+
+  if (args["fit-hurdle"]) {
+    reportHurdleFit(regular, snapIndex);
+  }
+
   console.log("");
   console.log(
     "Columns pair the empirical value with what the configured model implies.",
@@ -289,6 +314,194 @@ async function main(): Promise<void> {
     "Large P(zero) or median/mean gaps mean the family is wrong even where",
   );
   console.log("sigma is right — that is a shape error, not a variance error.");
+}
+
+interface ZeroInflationSample {
+  baseline: number;
+  snapShare: number;
+  actual: number;
+}
+
+/**
+ * One row per (player, prior-games-window) sample: the player's own trailing
+ * average as a stand-in for projected volume, their trailing average snap
+ * share over the same window, and what actually happened next.
+ *
+ * Shared by the diagnostic report and the hurdle fit so both are built off
+ * the exact same sample construction — a fit validated against a differently
+ * constructed sample than the one used to build it would not be a real
+ * validation.
+ */
+function buildZeroInflationSamples(
+  stat: "receptions" | "rush_attempts",
+  regular: readonly PlayerWeekLike[],
+  snapIndex: ReadonlyMap<string, number>,
+): ZeroInflationSample[] {
+  const extract = EXTRACT[stat];
+
+  const byPlayer = new Map<string, PlayerWeekLike[]>();
+  for (const row of regular) {
+    const list = byPlayer.get(row.playerId);
+    if (list) list.push(row);
+    else byPlayer.set(row.playerId, [row]);
+  }
+
+  const samples: ZeroInflationSample[] = [];
+  for (const weeks of byPlayer.values()) {
+    // Chronological order matters here — "prior" below must mean prior.
+    const ordered = [...weeks].sort((a, b) =>
+      a.season !== b.season ? a.season - b.season : a.week - b.week,
+    );
+    const values = ordered.map(extract);
+    if (values.length < 4) continue;
+
+    for (let i = 2; i < values.length; i += 1) {
+      const prior = values.slice(0, i);
+      const baseline = prior.reduce((s, v) => s + v, 0) / prior.length;
+      if (baseline <= 0) continue;
+
+      const priorSnaps = ordered
+        .slice(0, i)
+        .map((row) =>
+          snapIndex.get(
+            `${row.season}|${row.week}|${row.team}|${nameKey(row.name)}`,
+          ),
+        );
+      const known = priorSnaps.filter((s): s is number => s != null);
+      if (known.length === 0) continue;
+      const snapShare = known.reduce((s, v) => s + v, 0) / known.length;
+
+      samples.push({ baseline, snapShare, actual: values[i] });
+    }
+  }
+  return samples;
+}
+
+/**
+ * Does snap share explain zero-rate beyond what projected volume already does?
+ *
+ * `baselineSnapShare`/`baselineRouteParticipation` (`src/lib/ingest/baselines.ts`)
+ * are computed from the same offensive-snap-% source and are currently unused by
+ * the distribution — before wiring either into a hurdle model, this checks
+ * whether they carry information the volume baseline does not already have.
+ *
+ * Within each volume bin, players are split into snap-share terciles. If the
+ * zero-rate is flat across terciles at a fixed volume level, snap share is
+ * redundant with volume (plausible — it is an input to the projection that
+ * produces that volume in the first place) and a hurdle should condition on
+ * volume alone. If zero-rate varies meaningfully across terciles, snap share
+ * carries real marginal signal worth threading into the model.
+ */
+function reportZeroInflationBySnapShare(
+  regular: readonly PlayerWeekLike[],
+  snapIndex: ReadonlyMap<string, number>,
+): void {
+  console.log("");
+  console.log("=".repeat(72));
+  console.log("ZERO-RATE vs SNAP SHARE — does snap share add signal beyond volume?");
+  console.log("=".repeat(72));
+  console.log(
+    "  Within each volume bin, players are split into snap-share terciles",
+  );
+  console.log(
+    "  (own trailing average, same prior-games window as the volume baseline).",
+  );
+  console.log(
+    "  Flat zero-rate across terciles means snap share is redundant with",
+  );
+  console.log("  volume; a real spread means it carries marginal signal.");
+
+  for (const stat of ["receptions", "rush_attempts"] as const) {
+    const samples = buildZeroInflationSamples(stat, regular, snapIndex);
+
+    console.log("");
+    console.log(`${stat}  (n=${samples.length} with known snap share)`);
+    console.log(
+      `  ${"volume".padEnd(11)} ${"tercile".padEnd(9)} ${"n".padStart(6)} ` +
+        `${"snap share".padStart(11)} ${"P(zero)".padStart(9)}`,
+    );
+
+    for (const [lo, hi] of BINS) {
+      const inBin = samples.filter((s) => s.baseline >= lo && s.baseline < hi);
+      if (inBin.length < 60) continue;
+
+      const sorted = [...inBin].sort((a, b) => a.snapShare - b.snapShare);
+      const third = Math.floor(sorted.length / 3);
+      const terciles: Array<[string, typeof sorted]> = [
+        ["low", sorted.slice(0, third)],
+        ["mid", sorted.slice(third, 2 * third)],
+        ["high", sorted.slice(2 * third)],
+      ];
+
+      for (const [label, group] of terciles) {
+        if (group.length === 0) continue;
+        const zeroRate =
+          group.filter((s) => s.actual === 0).length / group.length;
+        const meanSnap =
+          group.reduce((s, v) => s + v.snapShare, 0) / group.length;
+        console.log(
+          `  ${`${lo}-${hi}`.padEnd(11)} ${label.padEnd(9)} ${String(group.length).padStart(6)} ` +
+            `${`${(meanSnap * 100).toFixed(0)}%`.padStart(11)} ${`${(zeroRate * 100).toFixed(1)}%`.padStart(9)}`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Fit the receptions hurdle model: logistic regression of P(actual=0) on
+ * projected volume and snap share, using the exact sample construction
+ * `--zero` reports against.
+ *
+ * Not run for rush_attempts — `--zero`'s own output showed a materially
+ * weaker, noisier snap-share relationship there, and rush_attempts is already
+ * well-calibrated (+1.1pp bias) without a hurdle.
+ */
+function reportHurdleFit(
+  regular: readonly PlayerWeekLike[],
+  snapIndex: ReadonlyMap<string, number>,
+): void {
+  console.log("");
+  console.log("=".repeat(72));
+  console.log("FIT hurdle model — paste into config.ts distribution.hurdle");
+  console.log("=".repeat(72));
+
+  const samples = buildZeroInflationSamples("receptions", regular, snapIndex);
+  // log(mean), not raw mean: mean and snap share are correlated at 0.70 in
+  // this sample, and a linear-in-mean term let the optimiser route mean's own
+  // effect through the correlated snap-share coefficient — flipping its sign
+  // positive, backwards from both the marginal fit and the --zero diagnostic's
+  // own within-bin numbers. log(mean+offset) fixed it; see the comment on
+  // `distribution.hurdle` in config.ts for the fuller account.
+  const points = samples.map((s) => ({
+    x: [Math.log(s.baseline + HURDLE_MEAN_LOG_OFFSET), s.snapShare],
+    y: (s.actual === 0 ? 1 : 0) as 0 | 1,
+  }));
+
+  const fit = logisticFit(points);
+  if (!fit) {
+    console.log(`  receptions: not enough data (n=${points.length})`);
+    return;
+  }
+
+  const [meanCoef, snapShareCoef] = fit.coefficients;
+  console.log(
+    `  receptions: { intercept: ${fit.intercept.toFixed(4)}, meanCoef: ${meanCoef.toFixed(4)}, snapShareCoef: ${snapShareCoef.toFixed(4)} }, // n=${points.length}`,
+  );
+
+  // In-sample fit quality only — this is not the held-out validation. Run
+  // this on 2020-2022 and check calibrateByPropType on the 2023-2024 backtest
+  // separately, same discipline as the sigma refit.
+  const predictions = points.map(
+    (p) => sigmoid(fit.intercept + meanCoef * p.x[0] + snapShareCoef * p.x[1]),
+  );
+  const actualZeroRate = points.filter((p) => p.y === 1).length / points.length;
+  const meanPredictedZeroRate =
+    predictions.reduce((s, v) => s + v, 0) / predictions.length;
+  console.log(
+    `  in-sample: actual zero-rate ${(actualZeroRate * 100).toFixed(1)}%, ` +
+      `mean predicted ${(meanPredictedZeroRate * 100).toFixed(1)}%`,
+  );
 }
 
 main().catch((error) => {

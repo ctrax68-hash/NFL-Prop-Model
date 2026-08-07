@@ -104,7 +104,7 @@ function buildTeamTotals(teamWeeks: readonly TeamWeek[]): Map<string, TeamTotals
 }
 
 /** Normalise a player name for joining against the snap-count file. */
-function nameKey(name: string): string {
+export function nameKey(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
