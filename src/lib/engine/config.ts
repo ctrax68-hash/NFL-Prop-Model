@@ -251,23 +251,30 @@ export const DEFAULT_CONFIG: EngineConfig = {
     },
     counts: "negative-binomial",
     sigmaBlendK: 8,
-    // Fitted by `npx tsx scripts/ingest.ts --seasons 2022-2025`, regressing each
-    // player-season's weekly standard deviation on its weekly mean. Sample sizes
-    // in parentheses.
+    // Refitted by `npx tsx scripts/fit-distribution.ts --seasons 2020-2022 --fit`,
+    // regressing each player's own weekly standard deviation on their own weekly
+    // mean — the exact quantity `leagueSigma()` consumes. Fitted on 2020-2022
+    // and deliberately held out from the 2023-24 backtest these numbers are
+    // judged on, so the improvement is out-of-sample rather than a re-description
+    // of the evaluation set. Refitting on 2023-24 independently lands within a
+    // few percent on every stat, which is the reassurance that these are real
+    // parameters and not noise.
     //
-    // Quarterback volume comes back with a flat slope, and that is a real
-    // pattern rather than a fitting artefact: high-attempt passers are
-    // entrenched starters with stable roles, while low-attempt ones are backups
-    // and injury fill-ins whose usage swings wildly. Sigma is therefore constant
-    // for those markets.
+    // This replaces an earlier fit whose comment asserted that quarterback
+    // volume genuinely has a flat sigma slope — entrenched starters being stable
+    // and backups volatile — and encoded that as `slope: 0`. Both disjoint
+    // fitting windows put the QB slope near 0.30, so the flat result was a
+    // small-sample artefact (n=178) rather than the real pattern it was
+    // described as. Holding sigma constant across volume left QB props the
+    // worst-calibrated markets on the board.
     sigmaModels: {
-      receiving_yards: { intercept: 7.7761, slope: 0.4796, min: 6 }, // n=1496
-      rushing_yards: { intercept: 6.2744, slope: 0.4725, min: 5 }, // n=848
-      passing_yards: { intercept: 66.0301, slope: 0.0426, min: 45 }, // n=178
-      receptions: { intercept: 0.7589, slope: 0.3382, min: 0.5 }, // n=1339
-      rush_attempts: { intercept: 1.7258, slope: 0.269, min: 0.8 }, // n=596
-      pass_attempts: { intercept: 9.2342, slope: 0, min: 4 }, // n=178
-      pass_completions: { intercept: 6.3161, slope: 0, min: 3 }, // n=178
+      receiving_yards: { intercept: 7.4244, slope: 0.5349, min: 6 }, // n=635
+      rushing_yards: { intercept: 4.6355, slope: 0.5701, min: 5 }, // n=477
+      passing_yards: { intercept: 22.3941, slope: 0.2975, min: 45 }, // n=124
+      receptions: { intercept: 0.6357, slope: 0.4198, min: 0.5 }, // n=641
+      rush_attempts: { intercept: 0.7296, slope: 0.4374, min: 0.8 }, // n=516
+      pass_attempts: { intercept: 1.8959, slope: 0.307, min: 4 }, // n=155
+      pass_completions: { intercept: 1.8969, slope: 0.2888, min: 3 }, // n=124
     },
     minVarianceMeanRatio: 1.05,
   },
