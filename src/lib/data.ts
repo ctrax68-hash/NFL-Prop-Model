@@ -8,7 +8,7 @@
 import "server-only";
 
 import { createStore } from "./db/factory";
-import type { PlacedBet, SlateStore } from "./db/store";
+import type { ClosingLine, PlacedBet, SlateStore } from "./db/store";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
 import { readFile } from "node:fs/promises";
@@ -81,6 +81,16 @@ export async function getSlate(
 
 export async function listBets(): Promise<PlacedBet[]> {
   return safely("listBets", [], () => getStore().listBets());
+}
+
+export async function getClosingLine(
+  propId: string,
+  season: number,
+  week: number,
+): Promise<ClosingLine | null> {
+  return safely("getClosingLine", null, () =>
+    getStore().getClosingLine(propId, season, week),
+  );
 }
 
 export async function getBacktest(): Promise<BacktestResult | null> {

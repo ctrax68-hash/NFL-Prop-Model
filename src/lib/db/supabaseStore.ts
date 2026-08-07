@@ -16,7 +16,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
-import type { PlacedBet, SlateStore } from "./store";
+import type { ClosingLine, PlacedBet, SlateStore } from "./store";
 
 export function createServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -223,6 +223,42 @@ export class SupabaseSlateStore implements SlateStore {
     if (!runs || runs.length === 0) return null;
 
     return runs[0].snapshot as SlateSnapshot;
+  }
+
+  /**
+   * The most recent pipeline run for this prop's week carries the last
+   * odds we captured for it before kickoff — the closest thing to a
+   * closing line this schema tracks. Reads off the same `snapshot` jsonb
+   * as `loadSnapshot` rather than the normalised `props` table, since a
+   * run's props are only ever needed as a whole slate, never queried on
+   * their own.
+   */
+  async getClosingLine(
+    propId: string,
+    season: number,
+    week: number,
+  ): Promise<ClosingLine | null> {
+    const { data: runs, error } = await this.client
+      .from("pipeline_runs")
+      .select("snapshot")
+      .eq("season", season)
+      .eq("week", week)
+      .order("generated_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw new Error(`Could not load closing line: ${error.message}`);
+    if (!runs || runs.length === 0) return null;
+
+    const snapshot = runs[0].snapshot as SlateSnapshot;
+    const prop = snapshot.props.find((p) => p.propId === propId);
+    if (!prop) return null;
+
+    return {
+      propId: prop.propId,
+      lineValue: prop.lineValue,
+      oddsOverAmerican: prop.oddsOverAmerican,
+      oddsUnderAmerican: prop.oddsUnderAmerican,
+    };
   }
 
   async listSlates(): Promise<SlateSummary[]> {

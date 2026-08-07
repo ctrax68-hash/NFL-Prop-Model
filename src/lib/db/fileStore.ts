@@ -12,7 +12,7 @@ import { gunzipSync } from "node:zlib";
 import path from "node:path";
 
 import { summarise, type SlateSnapshot, type SlateSummary } from "../pipeline/types";
-import type { PlacedBet, SlateStore } from "./store";
+import type { ClosingLine, PlacedBet, SlateStore } from "./store";
 
 export class FileSlateStore implements SlateStore {
   readonly kind = "file";
@@ -91,6 +91,19 @@ export class FileSlateStore implements SlateStore {
 
   async loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null> {
     return this.readJson<SlateSnapshot>(this.slatePath(season, week));
+  }
+
+  /**
+   * A file store overwrites one JSON file per (season, week) on every run —
+   * there's no format for holding more than one pricing pass. That means it
+   * has no way to tell "the line a bet was placed against" apart from "the
+   * closing line": they're the same single stored copy, so returning it as a
+   * closing line would silently show 0 CLV on every bet rather than an
+   * honest "unavailable." Only a store that actually accumulates a run per
+   * pass (see SupabaseSlateStore) can answer this.
+   */
+  async getClosingLine(): Promise<ClosingLine | null> {
+    return null;
   }
 
   async listSlates(): Promise<SlateSummary[]> {

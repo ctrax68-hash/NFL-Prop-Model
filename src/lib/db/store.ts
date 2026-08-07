@@ -38,11 +38,30 @@ export interface PlacedBet {
   settledAt: string | null;
 }
 
+/** The odds captured on a prop's last-known pricing run for its week. */
+export interface ClosingLine {
+  propId: string;
+  lineValue: number;
+  oddsOverAmerican: number;
+  oddsUnderAmerican: number;
+}
+
 export interface SlateStore {
   readonly kind: string;
   saveSnapshot(snapshot: SlateSnapshot): Promise<void>;
   loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null>;
   listSlates(): Promise<SlateSummary[]>;
+  /**
+   * The odds captured for this prop on the most recent pipeline run for its
+   * week — the closest thing to a "closing line" this schema tracks. Only
+   * meaningful for a store that keeps a run per pricing pass; see
+   * {@link FileSlateStore} for why it always returns null.
+   */
+  getClosingLine(
+    propId: string,
+    season: number,
+    week: number,
+  ): Promise<ClosingLine | null>;
 
   placeBets(bets: readonly PlacedBet[]): Promise<void>;
   listBets(): Promise<PlacedBet[]>;
