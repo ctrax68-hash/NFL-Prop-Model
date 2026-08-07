@@ -37,6 +37,23 @@ export function isDiscreteStat(stat: StatType): boolean {
   return DISCRETE_STATS.has(stat);
 }
 
+/**
+ * Identifies a market independent of which book is quoting it.
+ *
+ * A prop id embeds the book (`${gameId}|${playerId}|${propType}|${bookmaker}`
+ * for real odds; no book segment for the single-book synthetic provider), so
+ * two books quoting the same player and stat are two distinct prop ids today.
+ * This is the key to group them back into one market by — matches the
+ * `props_market_idx` index on (game_id, player_id, prop_type).
+ */
+export function marketKey(
+  gameId: string,
+  playerId: string,
+  propType: PropType,
+): string {
+  return `${gameId}|${playerId}|${propType}`;
+}
+
 /** The yardage stats — everything not in {@link DISCRETE_STATS}. */
 export type ContinuousStatType =
   | "passing_yards"

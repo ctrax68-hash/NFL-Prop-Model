@@ -6,7 +6,7 @@
 import { sideOf, type PropEvaluation } from "./edge";
 import { sizeBet, type KellyResult } from "./kelly";
 import type { EngineConfig } from "./config";
-import type { PropLine, Side } from "./types";
+import { marketKey, type PropLine, type Side } from "./types";
 
 export interface BetCandidate {
   propId: string;
@@ -146,11 +146,33 @@ export function selectBets(
 
   passed.sort((a, b) => b.edge - a.edge);
 
+  // The exposure caps below dedupe by playerId/gameId only. With more than
+  // one book live, the same player+stat clearing the edge bar under two
+  // books is one bet's worth of real exposure, not two — without this it
+  // would silently consume two of a player's cap slots as if they were
+  // unrelated props. `passed` is already edge-sorted, so keeping the first
+  // candidate seen per market keeps the higher-edge one.
+  const seenMarkets = new Set<string>();
+  const deduped: BetCandidate[] = [];
+  for (const candidate of passed) {
+    const key = marketKey(candidate.gameId, candidate.playerId, candidate.propType);
+    if (seenMarkets.has(key)) {
+      rejected.push({
+        propId: candidate.propId,
+        side: candidate.side,
+        reason: "same market already has a higher-edge candidate from another book",
+      });
+      continue;
+    }
+    seenMarkets.add(key);
+    deduped.push(candidate);
+  }
+
   const perGame = new Map<string, number>();
   const perPlayer = new Map<string, number>();
   const selected: BetCandidate[] = [];
 
-  for (const candidate of passed) {
+  for (const candidate of deduped) {
     const gameCount = perGame.get(candidate.gameId) ?? 0;
     const playerCount = perPlayer.get(candidate.playerId) ?? 0;
 

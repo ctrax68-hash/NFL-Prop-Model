@@ -9,6 +9,7 @@ import "server-only";
 
 import { createStore } from "./db/factory";
 import type { ClosingLine, PlacedBet, SlateStore } from "./db/store";
+import { marketKey } from "./engine/types";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
 import { readFile } from "node:fs/promises";
@@ -129,23 +130,13 @@ export function slateKeyForProp(
   return { season: Number(match[1]), week: Number(match[2]) };
 }
 
-/** Everything the board needs about one prop, joined up. */
-export interface BoardRow {
+/** One book's price on a market, everything needed to bet against it. */
+export interface BoardRowBook {
   propId: string;
-  gameId: string;
-  playerId: string;
-  playerName: string;
-  teamId: string;
-  position: string;
-  headshotUrl: string | null;
-  opponentLabel: string;
-  gameday: string;
-  propType: SlateSnapshot["props"][number]["propType"];
+  bookName: string;
   lineValue: number;
   oddsOverAmerican: number;
   oddsUnderAmerican: number;
-  projectedValue: number;
-  sigma: number;
   modelProbOver: number;
   modelProbUnder: number;
   /** The book's de-vigged fair probability — the baseline edge is measured from. */
@@ -159,6 +150,31 @@ export interface BoardRow {
   isRecommended: boolean;
 }
 
+/**
+ * Everything the board needs about one market, joined up.
+ *
+ * A prop id embeds the book (see {@link marketKey}), so two books quoting the
+ * same player and stat used to render as two unrelated rows. This groups them
+ * by market instead: the top-level fields mirror the best-edge book (so
+ * existing sort/filter/tap-to-bet behavior needs no changes), and `books`
+ * carries every book's price for a line-shopping affordance.
+ */
+export interface BoardRow extends BoardRowBook {
+  gameId: string;
+  playerId: string;
+  playerName: string;
+  teamId: string;
+  position: string;
+  headshotUrl: string | null;
+  opponentLabel: string;
+  gameday: string;
+  propType: SlateSnapshot["props"][number]["propType"];
+  projectedValue: number;
+  sigma: number;
+  /** Every book quoting this market, best edge first. Length 1 outside a multi-book feed. */
+  books: BoardRowBook[];
+}
+
 export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
   const playerById = new Map(snapshot.players.map((p) => [p.playerId, p]));
   const gameById = new Map(snapshot.games.map((g) => [g.gameId, g]));
@@ -167,7 +183,17 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
     snapshot.recommendations.map((r) => [r.propId, r]),
   );
 
-  const rows: BoardRow[] = [];
+  interface Joined {
+    marketKey: string;
+    gameId: string;
+    playerId: string;
+    propType: SlateSnapshot["props"][number]["propType"];
+    projectedValue: number;
+    sigma: number;
+    book: BoardRowBook;
+  }
+
+  const joined: Joined[] = [];
 
   for (const evaluation of snapshot.evaluations) {
     const prop = propById.get(evaluation.propId);
@@ -179,10 +205,55 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
       evaluation.edgeOver >= evaluation.edgeUnder ? "over" : "under";
     const recommendation = recByProp.get(evaluation.propId);
 
-    rows.push({
-      propId: evaluation.propId,
+    joined.push({
+      marketKey: marketKey(evaluation.gameId, evaluation.playerId, evaluation.propType),
       gameId: evaluation.gameId,
       playerId: evaluation.playerId,
+      propType: evaluation.propType,
+      projectedValue: evaluation.projectedValue,
+      sigma: evaluation.sigma,
+      book: {
+        propId: evaluation.propId,
+        bookName: prop.bookName,
+        lineValue: evaluation.lineValue,
+        oddsOverAmerican: prop.oddsOverAmerican,
+        oddsUnderAmerican: prop.oddsUnderAmerican,
+        modelProbOver: evaluation.modelProbOverNoPush,
+        modelProbUnder: evaluation.modelProbUnderNoPush,
+        fairProbOver: evaluation.fairProbOver,
+        fairProbUnder: evaluation.fairProbUnder,
+        edgeOver: evaluation.edgeOver,
+        edgeUnder: evaluation.edgeUnder,
+        bestSide,
+        bestEdge: bestSide === "over" ? evaluation.edgeOver : evaluation.edgeUnder,
+        recommendedUnits: recommendation?.kelly.recommendedUnits ?? 0,
+        isRecommended: recommendation != null,
+      },
+    });
+  }
+
+  const byMarket = new Map<string, Joined[]>();
+  for (const entry of joined) {
+    const list = byMarket.get(entry.marketKey);
+    if (list) list.push(entry);
+    else byMarket.set(entry.marketKey, [entry]);
+  }
+
+  const rows: BoardRow[] = [];
+  for (const entries of byMarket.values()) {
+    const books = entries
+      .map((e) => e.book)
+      .sort((a, b) => b.bestEdge - a.bestEdge);
+    const best = books[0];
+    const { playerId, gameId } = entries[0];
+    const player = playerById.get(playerId);
+    const game = gameById.get(gameId);
+    if (!player || !game) continue;
+
+    rows.push({
+      ...best,
+      gameId,
+      playerId,
       playerName: player.name,
       teamId: player.teamId,
       position: player.position,
@@ -192,22 +263,10 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
           ? `vs ${game.awayTeam}`
           : `@ ${game.homeTeam}`,
       gameday: game.gameday,
-      propType: evaluation.propType,
-      lineValue: evaluation.lineValue,
-      oddsOverAmerican: prop.oddsOverAmerican,
-      oddsUnderAmerican: prop.oddsUnderAmerican,
-      projectedValue: evaluation.projectedValue,
-      sigma: evaluation.sigma,
-      modelProbOver: evaluation.modelProbOverNoPush,
-      modelProbUnder: evaluation.modelProbUnderNoPush,
-      fairProbOver: evaluation.fairProbOver,
-      fairProbUnder: evaluation.fairProbUnder,
-      edgeOver: evaluation.edgeOver,
-      edgeUnder: evaluation.edgeUnder,
-      bestSide,
-      bestEdge: bestSide === "over" ? evaluation.edgeOver : evaluation.edgeUnder,
-      recommendedUnits: recommendation?.kelly.recommendedUnits ?? 0,
-      isRecommended: recommendation != null,
+      propType: entries[0].propType,
+      projectedValue: entries[0].projectedValue,
+      sigma: entries[0].sigma,
+      books,
     });
   }
 
