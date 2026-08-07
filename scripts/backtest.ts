@@ -135,6 +135,33 @@ async function main(): Promise<void> {
     );
   }
 
+  console.log("");
+  console.log("=".repeat(78));
+  console.log("CALIBRATION BY PROP TYPE — where the error actually lives");
+  console.log("=".repeat(78));
+  console.log(
+    "  bias = realized - predicted, in points. med/line below 1.00 means the",
+  );
+  console.log(
+    "  model's median sits too high. A mean on the line with the median below",
+  );
+  console.log("  it is the signature of unmodelled right skew.");
+  console.log("");
+  console.log(
+    `  ${"prop".padEnd(18)} ${"n".padStart(6)} ${"pred".padStart(7)} ` +
+      `${"real".padStart(7)} ${"bias".padStart(8)} ${"mean/line".padStart(10)} ` +
+      `${"med/line".padStart(9)} ${"zero%".padStart(7)}`,
+  );
+  for (const row of result.calibrationByPropType) {
+    console.log(
+      `  ${row.propType.padEnd(18)} ${String(row.n).padStart(6)} ` +
+        `${row.predicted.toFixed(3).padStart(7)} ${row.realized.toFixed(3).padStart(7)} ` +
+        `${`${row.biasPp >= 0 ? "+" : ""}${row.biasPp.toFixed(1)}pp`.padStart(8)} ` +
+        `${row.meanRatio.toFixed(3).padStart(10)} ${row.medianRatio.toFixed(3).padStart(9)} ` +
+        `${`${(row.zeroRate * 100).toFixed(1)}%`.padStart(7)}`,
+    );
+  }
+
   if (!result.propsAreReal) {
     console.log("");
     console.log("=".repeat(78));

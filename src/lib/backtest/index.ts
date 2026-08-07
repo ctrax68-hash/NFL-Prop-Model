@@ -60,6 +60,35 @@ export interface CalibrationBin {
   n: number;
 }
 
+/**
+ * Calibration split by prop type, plus the shape statistics that explain it.
+ *
+ * A single global calibration number averages over position groups that fail in
+ * opposite directions, which is how a defect isolated to skill positions stayed
+ * invisible behind one headline figure. These three statistics together
+ * distinguish *where* a mis-specified distribution is wrong:
+ *
+ *   - `biasPp` — realised minus predicted. Directional error, not dispersion.
+ *   - `medianRatio` — median(actual)/line. Below 1 means the model's median sits
+ *     too high, so too much probability mass is parked above the line.
+ *   - `zeroRate` — share of graded props that came in at exactly zero. A point
+ *     mass no continuous density can represent.
+ *
+ * A mean that lands on the line while the median sits well below it is the
+ * signature of unmodelled right skew.
+ */
+export interface PropTypeCalibration {
+  propType: PropType;
+  n: number;
+  predicted: number;
+  realized: number;
+  biasPp: number;
+  meanRatio: number;
+  medianRatio: number;
+  zeroRate: number;
+  bins: CalibrationBin[];
+}
+
 export interface BacktestResult {
   seasons: number[];
   weeksRun: number;
@@ -72,6 +101,8 @@ export interface BacktestResult {
   byPropType: Bucket[];
   bySeason: Bucket[];
   calibration: CalibrationBin[];
+  /** Calibration split per prop type, with the shape statistics behind it. */
+  calibrationByPropType: PropTypeCalibration[];
   /** Cumulative profit in units after each bet, in chronological order. */
   equityCurve: Array<{ index: number; season: number; week: number; cumulativeUnits: number }>;
 }
@@ -96,7 +127,7 @@ export async function runBacktest(
   const weeks = options.weeks ?? DEFAULT_WEEKS;
 
   const bets: GradedBet[] = [];
-  const calibrationPoints: Array<{ prob: number; wentOver: boolean }> = [];
+  const calibrationPoints: CalibrationPoint[] = [];
   let weeksRun = 0;
   let voided = 0;
 
@@ -138,6 +169,9 @@ export async function runBacktest(
         calibrationPoints.push({
           prob: evaluation.modelProbOverNoPush,
           wentOver: actual > evaluation.lineValue,
+          propType: evaluation.propType,
+          lineValue: evaluation.lineValue,
+          actual,
         });
       }
 
@@ -199,6 +233,7 @@ export async function runBacktest(
     byPropType: groupBuckets(bets, (bet) => bet.propType),
     bySeason: groupBuckets(bets, (bet) => String(bet.season)),
     calibration: calibrate(calibrationPoints),
+    calibrationByPropType: calibrateByPropType(calibrationPoints),
     equityCurve,
   };
 }
@@ -318,6 +353,72 @@ export function calibrate(
   }
 
   return bins;
+}
+
+/** A scored prop, carrying enough context to diagnose *why* it missed. */
+export interface CalibrationPoint {
+  prob: number;
+  wentOver: boolean;
+  propType: PropType;
+  lineValue: number;
+  actual: number;
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+/**
+ * Per-prop-type calibration, plus the statistics that identify the failure mode.
+ *
+ * Ratios are taken per prop and then averaged/medianed, not computed from
+ * aggregate means, so a handful of high-volume passing props cannot dominate the
+ * receiving numbers.
+ */
+export function calibrateByPropType(
+  points: readonly CalibrationPoint[],
+  binCount = 10,
+): PropTypeCalibration[] {
+  const groups = new Map<PropType, CalibrationPoint[]>();
+  for (const point of points) {
+    const list = groups.get(point.propType);
+    if (list) list.push(point);
+    else groups.set(point.propType, [point]);
+  }
+
+  return [...groups.entries()]
+    .map(([propType, group]) => {
+      const predicted =
+        group.reduce((sum, p) => sum + p.prob, 0) / group.length;
+      const realized = group.filter((p) => p.wentOver).length / group.length;
+
+      // A line of zero would make the ratio meaningless; those props are
+      // excluded from the shape statistics but still counted in calibration.
+      const ratios = group
+        .filter((p) => p.lineValue > 0)
+        .map((p) => p.actual / p.lineValue);
+
+      return {
+        propType,
+        n: group.length,
+        predicted,
+        realized,
+        biasPp: (realized - predicted) * 100,
+        meanRatio:
+          ratios.length > 0
+            ? ratios.reduce((sum, r) => sum + r, 0) / ratios.length
+            : 0,
+        medianRatio: median(ratios),
+        zeroRate: group.filter((p) => p.actual === 0).length / group.length,
+        bins: calibrate(group, binCount),
+      };
+    })
+    .sort((a, b) => b.n - a.n);
 }
 
 /**
