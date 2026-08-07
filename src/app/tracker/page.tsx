@@ -1,5 +1,6 @@
 import clsx from "clsx";
 
+import { ExampleBetCard } from "@/components/ExampleBetCard";
 import { SettleButton } from "@/components/SettleButton";
 import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
 import { listBets } from "@/lib/data";
@@ -88,6 +89,12 @@ export default async function TrackerPage() {
           title="No bets logged yet"
           body="Add prices to the bet slip from the board, then log them here to track results, P/L and closing line value."
         />
+        <div>
+          <p className="mb-2 text-[11px] tracking-[0.08em] text-[var(--ink-mute)] uppercase">
+            What a logged bet looks like
+          </p>
+          <ExampleBetCard />
+        </div>
       </div>
     );
   }
