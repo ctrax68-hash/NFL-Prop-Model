@@ -37,6 +37,12 @@ export function isDiscreteStat(stat: StatType): boolean {
   return DISCRETE_STATS.has(stat);
 }
 
+/** The yardage stats — everything not in {@link DISCRETE_STATS}. */
+export type ContinuousStatType =
+  | "passing_yards"
+  | "rushing_yards"
+  | "receiving_yards";
+
 /** Offensive tendencies for one team, as stored in the `teams` table. */
 export interface TeamRates {
   teamId: string;

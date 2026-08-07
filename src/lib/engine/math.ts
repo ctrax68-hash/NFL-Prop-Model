@@ -89,6 +89,58 @@ export function logGamma(x: number): number {
   );
 }
 
+/**
+ * Regularised lower incomplete gamma, `P(a, x)` — the gamma distribution's CDF
+ * in standardised form.
+ *
+ * Two evaluations that converge in different regimes, which is why both are
+ * here: the series converges quickly for `x` below `a + 1` and slowly above it,
+ * and the continued fraction does the reverse. Switching between them keeps the
+ * relative error near machine epsilon across the whole domain instead of
+ * degrading in one tail.
+ */
+export function lowerGammaRegularized(a: number, x: number): number {
+  if (!(a > 0) || !Number.isFinite(a)) return Number.NaN;
+  if (x <= 0) return 0;
+
+  const logPrefix = -x + a * Math.log(x) - logGamma(a);
+
+  if (x < a + 1) {
+    // Series: P(a,x) = e^-x x^a / Γ(a) · Σ xⁿ / (a(a+1)...(a+n))
+    let term = 1 / a;
+    let sum = term;
+    for (let n = 1; n < GAMMA_MAX_ITERATIONS; n += 1) {
+      term *= x / (a + n);
+      sum += term;
+      if (Math.abs(term) < Math.abs(sum) * GAMMA_EPSILON) break;
+    }
+    return clamp(sum * Math.exp(logPrefix), 0, 1);
+  }
+
+  // Continued fraction for the upper tail Q(a,x), then P = 1 - Q.
+  let b = x + 1 - a;
+  let c = 1 / GAMMA_TINY;
+  let d = 1 / b;
+  let h = d;
+  for (let i = 1; i < GAMMA_MAX_ITERATIONS; i += 1) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < GAMMA_TINY) d = GAMMA_TINY;
+    c = b + an / c;
+    if (Math.abs(c) < GAMMA_TINY) c = GAMMA_TINY;
+    d = 1 / d;
+    const delta = d * c;
+    h *= delta;
+    if (Math.abs(delta - 1) < GAMMA_EPSILON) break;
+  }
+  return clamp(1 - Math.exp(logPrefix) * h, 0, 1);
+}
+
+const GAMMA_MAX_ITERATIONS = 300;
+const GAMMA_EPSILON = 1e-14;
+const GAMMA_TINY = 1e-300;
+
 /** Clamp `value` into `[min, max]`. */
 export function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;

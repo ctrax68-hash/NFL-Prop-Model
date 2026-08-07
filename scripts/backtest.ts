@@ -11,7 +11,11 @@ import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { runBacktest, type Bucket } from "../src/lib/backtest";
-import { DEFAULT_CONFIG } from "../src/lib/engine/config";
+import {
+  DEFAULT_CONFIG,
+  withConfig,
+  type YardsDistribution,
+} from "../src/lib/engine/config";
 import { createPropsProvider } from "../src/lib/ingest/props/factory";
 import { loadDataBundle, seasonsToLoad } from "../src/lib/pipeline/bundle";
 import { parseArgs, parseSeasonRange } from "./lib/args";
@@ -51,6 +55,27 @@ async function main(): Promise<void> {
       ? args.provider
       : (process.env.PROPS_PROVIDER ?? "synthetic");
 
+  // `--yards gamma` forces one family across every yardage stat so competing
+  // distributions can be compared on the same replay. Without it the per-stat
+  // defaults in DEFAULT_CONFIG apply.
+  const yards = typeof args.yards === "string" ? args.yards : undefined;
+  const config = yards
+    ? withConfig({
+        distribution: {
+          yards: {
+            receiving_yards: yards as YardsDistribution,
+            rushing_yards: yards as YardsDistribution,
+            passing_yards: yards as YardsDistribution,
+          },
+        },
+      })
+    : DEFAULT_CONFIG;
+  console.log(
+    `Yards distributions: ${Object.entries(config.distribution.yards)
+      .map(([stat, family]) => `${stat}=${family}`)
+      .join(" ")}`,
+  );
+
   console.log(`Loading data for ${seasons.join(", ")}...`);
   const bundle = await loadDataBundle(seasonsToLoad(seasons));
   const provider = createPropsProvider(providerName, bundle);
@@ -61,7 +86,7 @@ async function main(): Promise<void> {
   const result = await runBacktest(bundle, {
     seasons,
     weeks,
-    config: DEFAULT_CONFIG,
+    config,
     provider,
     onProgress: (season, week, snapshot) => {
       process.stdout.write(

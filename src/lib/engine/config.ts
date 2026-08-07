@@ -6,7 +6,7 @@
  * plus a snapshot of this object.
  */
 
-import type { StatType } from "./types";
+import type { ContinuousStatType, StatType } from "./types";
 
 /**
  * Standard deviation is modelled as a linear function of the projected mean,
@@ -27,7 +27,7 @@ export interface SigmaModel {
   min: number;
 }
 
-export type YardsDistribution = "truncated-normal" | "normal";
+export type YardsDistribution = "truncated-normal" | "normal" | "gamma";
 export type CountDistribution = "negative-binomial" | "poisson" | "normal";
 export type DevigMethod = "multiplicative" | "power" | "none";
 
@@ -131,7 +131,15 @@ export interface EngineConfig {
   };
 
   distribution: {
-    yards: YardsDistribution;
+    /**
+     * Continuous family per yardage stat — deliberately not one global choice.
+     *
+     * Passing yards is a sum over ~35 attempts and comes out close to
+     * symmetric; receiving and rushing yards are sums over a handful of
+     * touches and are heavily right-skewed with a real chance of zero. Forcing
+     * one family on both measurably breaks whichever one it does not fit.
+     */
+    yards: Record<ContinuousStatType, YardsDistribution>;
     counts: CountDistribution;
     /**
      * Shrinkage constant for blending a player's own sigma with the league
@@ -231,7 +239,16 @@ export const DEFAULT_CONFIG: EngineConfig = {
   },
 
   distribution: {
-    yards: "truncated-normal",
+    // Gamma for the skill-position stats, measured over 2023-24: it cut
+    // receiving-yards bias from -7.3pp to -1.5pp and rushing from -7.4pp to
+    // -2.3pp, moving each median/line ratio from ~0.83 to ~0.95. The same
+    // change applied to passing yards made it worse (+4.0pp -> +8.1pp), which
+    // is why this is per-stat and passing stays on the symmetric family.
+    yards: {
+      receiving_yards: "gamma",
+      rushing_yards: "gamma",
+      passing_yards: "truncated-normal",
+    },
     counts: "negative-binomial",
     sigmaBlendK: 8,
     // Fitted by `npx tsx scripts/ingest.ts --seasons 2022-2025`, regressing each

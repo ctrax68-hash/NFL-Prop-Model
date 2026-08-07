@@ -3,9 +3,20 @@
  * projection plus a line into over/under probabilities.
  */
 
-import { bisect, clamp, logGamma, normalCdf, normalPdf } from "./math";
-import type { EngineConfig, SigmaModel } from "./config";
-import { isDiscreteStat, type StatType } from "./types";
+import {
+  bisect,
+  clamp,
+  logGamma,
+  lowerGammaRegularized,
+  normalCdf,
+  normalPdf,
+} from "./math";
+import type { EngineConfig, SigmaModel, YardsDistribution } from "./config";
+import {
+  isDiscreteStat,
+  type ContinuousStatType,
+  type StatType,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Step 5 — variance estimation
@@ -105,6 +116,43 @@ export function solveTruncatedNormalLocation(targetMean: number, s: number): num
 }
 
 /** Negative binomial parameters derived from a mean and variance. */
+/**
+ * Gamma shape and scale matched to a target mean and standard deviation.
+ *
+ * Two parameters, two moments, so this matches both exactly — which means the
+ * fitted `sigmaModels` carry over untouched and the projection still lands on
+ * the distribution's mean, exactly as the truncated normal arranged via
+ * `solveTruncatedNormalLocation`. Nothing upstream in projection has to change.
+ *
+ * What does change is the *shape*. Gamma's skewness is `2/sqrt(shape)`, and for
+ * a stat like receiving yards (mean ~32, sigma ~23) shape lands near 1.9, giving
+ * a median around 0.82x the mean. A normal truncated at zero is far more
+ * symmetric at those parameters, which is why it placed its median too high.
+ */
+export function gammaParams(
+  mean: number,
+  sigma: number,
+): { shape: number; scale: number } {
+  const variance = Math.max(1e-12, sigma * sigma);
+  const safeMean = Math.max(1e-9, mean);
+  return { shape: (safeMean * safeMean) / variance, scale: variance / safeMean };
+}
+
+export function gammaCdf(x: number, shape: number, scale: number): number {
+  if (x <= 0) return 0;
+  return lowerGammaRegularized(shape, x / scale);
+}
+
+export function gammaPdf(x: number, shape: number, scale: number): number {
+  if (x <= 0 || scale <= 0) return 0;
+  return Math.exp(
+    (shape - 1) * Math.log(x) -
+      x / scale -
+      shape * Math.log(scale) -
+      logGamma(shape),
+  );
+}
+
 export function negBinomialParams(
   mu: number,
   variance: number,
@@ -191,29 +239,75 @@ export function computeOverUnder(
 
   return isDiscreteStat(stat)
     ? discreteOverUnder(stat, mean, sigma, line, config)
-    : continuousOverUnder(mean, sigma, line, config);
+    : continuousOverUnder(stat, mean, sigma, line, config);
 }
 
-function continuousOverUnder(
+/**
+ * Survival function `P(X > x)` for the configured yards family.
+ *
+ * Shared by the probability path and the density chart so both always describe
+ * the same distribution — a chart that disagreed with the price would be worse
+ * than no chart.
+ */
+function continuousSurvival(
+  stat: StatType,
   mean: number,
   sigma: number,
-  line: number,
   config: EngineConfig,
-): OverUnderResult {
-  const useTruncated = config.distribution.yards === "truncated-normal";
+): { survival: (x: number) => number; label: string } {
+  const family = yardsFamily(stat, config);
+
+  if (family === "gamma") {
+    // A projection of zero is degenerate rather than gamma-distributed; the
+    // player is not expected to record the stat at all.
+    if (mean <= 1e-9) {
+      return { survival: (x) => (x <= 0 ? 1 : 0), label: "gamma" };
+    }
+    const { shape, scale } = gammaParams(mean, sigma);
+    return {
+      survival: (x) =>
+        x <= 0 ? 1 : clamp(1 - gammaCdf(x, shape, scale), 0, 1),
+      label: "gamma",
+    };
+  }
+
+  const useTruncated = family === "truncated-normal";
   const location = useTruncated
     ? solveTruncatedNormalLocation(mean, sigma)
     : mean;
 
   // Probability the underlying normal exceeds `x`, conditioned on X >= 0 when
   // truncation is enabled.
-  const survival = (x: number): number => {
-    const upper = normalCdf((location - x) / sigma);
-    if (!useTruncated) return upper;
-    const massAboveZero = normalCdf(location / sigma);
-    if (massAboveZero < 1e-300) return 0;
-    return clamp(upper / massAboveZero, 0, 1);
+  return {
+    survival: (x: number): number => {
+      const upper = normalCdf((location - x) / sigma);
+      if (!useTruncated) return upper;
+      const massAboveZero = normalCdf(location / sigma);
+      if (massAboveZero < 1e-300) return 0;
+      return clamp(upper / massAboveZero, 0, 1);
+    },
+    label: useTruncated ? "truncated-normal" : "normal",
   };
+}
+
+/** The configured continuous family for a yardage stat. */
+export function yardsFamily(
+  stat: StatType,
+  config: EngineConfig,
+): YardsDistribution {
+  return (
+    config.distribution.yards[stat as ContinuousStatType] ?? "truncated-normal"
+  );
+}
+
+function continuousOverUnder(
+  stat: StatType,
+  mean: number,
+  sigma: number,
+  line: number,
+  config: EngineConfig,
+): OverUnderResult {
+  const { survival, label } = continuousSurvival(stat, mean, sigma, config);
 
   // Yardage totals are integers in reality even though we model them
   // continuously, so an integer line can push. Apply a continuity correction:
@@ -222,12 +316,7 @@ function continuousOverUnder(
     const probOver = survival(line + 0.5);
     const probUnder = clamp(1 - survival(line - 0.5), 0, 1);
     const probPush = clamp(1 - probOver - probUnder, 0, 1);
-    return {
-      probOver,
-      probUnder,
-      probPush,
-      distribution: useTruncated ? "truncated-normal" : "normal",
-    };
+    return { probOver, probUnder, probPush, distribution: label };
   }
 
   const probOver = survival(line);
@@ -235,7 +324,7 @@ function continuousOverUnder(
     probOver,
     probUnder: clamp(1 - probOver, 0, 1),
     probPush: 0,
-    distribution: useTruncated ? "truncated-normal" : "normal",
+    distribution: label,
   };
 }
 
@@ -254,7 +343,7 @@ function discreteOverUnder(
   let distribution: string;
 
   if (preference === "normal") {
-    return continuousOverUnder(mean, sigma, line, config);
+    return continuousOverUnder(stat, mean, sigma, line, config);
   }
 
   const overdispersed =
@@ -333,13 +422,25 @@ export function densityCurve(
     return out;
   }
 
-  const useTruncated = config.distribution.yards === "truncated-normal";
-  const location = useTruncated ? solveTruncatedNormalLocation(mean, sigma) : mean;
-  const massAboveZero = useTruncated ? normalCdf(location / sigma) : 1;
-
   const hi = Math.max(1, mean + 3.5 * sigma);
   const step = hi / (points - 1);
   const out: DensityPoint[] = [];
+
+  const family = yardsFamily(input.stat, config);
+
+  if (family === "gamma") {
+    const { shape, scale } = gammaParams(mean, sigma);
+    for (let i = 0; i < points; i += 1) {
+      const x = i * step;
+      out.push({ x, y: mean <= 1e-9 ? 0 : gammaPdf(x, shape, scale) });
+    }
+    return out;
+  }
+
+  const useTruncated = family === "truncated-normal";
+  const location = useTruncated ? solveTruncatedNormalLocation(mean, sigma) : mean;
+  const massAboveZero = useTruncated ? normalCdf(location / sigma) : 1;
+
   for (let i = 0; i < points; i += 1) {
     const x = i * step;
     const density = normalPdf((x - location) / sigma) / sigma;

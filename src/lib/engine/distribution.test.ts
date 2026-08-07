@@ -11,8 +11,142 @@ import {
   poissonPmf,
   solveTruncatedNormalLocation,
   truncatedNormalMean,
+  gammaParams,
+  gammaCdf,
+  gammaPdf,
 } from "./distribution";
 import { DEFAULT_CONFIG, withConfig } from "./config";
+
+/** Numeric mean of a continuous density, for checking moment matching. */
+function numericMean(
+  pdf: (x: number) => number,
+  hi: number,
+  steps = 200_000,
+): number {
+  const step = hi / steps;
+  let total = 0;
+  for (let i = 0; i < steps; i += 1) {
+    const x = (i + 0.5) * step;
+    total += x * pdf(x) * step;
+  }
+  return total;
+}
+
+describe("gamma", () => {
+  it("matches the requested mean and variance exactly", () => {
+    for (const [mean, sigma] of [
+      [32, 23],
+      [5, 4],
+      [250, 70],
+    ]) {
+      const { shape, scale } = gammaParams(mean, sigma);
+      expect(shape * scale).toBeCloseTo(mean, 9);
+      expect(Math.sqrt(shape * scale * scale)).toBeCloseTo(sigma, 9);
+    }
+  });
+
+  it("integrates to the same mean its parameters claim", () => {
+    const { shape, scale } = gammaParams(32, 23);
+    expect(numericMean((x) => gammaPdf(x, shape, scale), 400)).toBeCloseTo(
+      32,
+      2,
+    );
+  });
+
+  it("has a CDF that is monotone, bounded, and zero at the origin", () => {
+    const { shape, scale } = gammaParams(32, 23);
+    expect(gammaCdf(0, shape, scale)).toBe(0);
+    let previous = -1;
+    for (let x = 0; x <= 400; x += 2) {
+      const value = gammaCdf(x, shape, scale);
+      expect(value).toBeGreaterThanOrEqual(previous);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+      previous = value;
+    }
+    expect(gammaCdf(1e6, shape, scale)).toBeCloseTo(1, 10);
+  });
+
+  it("places its median below its mean — the property the truncated normal lacked", () => {
+    // Right skew is the entire point of the family swap: the old model put the
+    // median at ~0.97x the mean for these parameters, reality nearer 0.83x.
+    const mean = 32;
+    const { shape, scale } = gammaParams(mean, 23);
+    let lo = 0;
+    let hi = 400;
+    for (let i = 0; i < 200; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (gammaCdf(mid, shape, scale) < 0.5) lo = mid;
+      else hi = mid;
+    }
+    const median = (lo + hi) / 2;
+    expect(median).toBeLessThan(mean);
+    expect(median / mean).toBeGreaterThan(0.7);
+    expect(median / mean).toBeLessThan(0.9);
+  });
+});
+
+describe("computeOverUnder — gamma yards", () => {
+  const gammaConfig = withConfig({
+    distribution: {
+      yards: { receiving_yards: "gamma", rushing_yards: "gamma" },
+    },
+  });
+
+  it("labels the distribution it actually used", () => {
+    const result = computeOverUnder(
+      { stat: "receiving_yards", mean: 32, sigma: 23, line: 31.5 },
+      gammaConfig,
+    );
+    expect(result.distribution).toBe("gamma");
+  });
+
+  it("prices the over below 50% at a line on the mean, because the median is lower", () => {
+    const result = computeOverUnder(
+      { stat: "receiving_yards", mean: 32, sigma: 23, line: 32.5 },
+      gammaConfig,
+    );
+    expect(result.probOver).toBeLessThan(0.5);
+    expect(result.probOver + result.probUnder + result.probPush).toBeCloseTo(
+      1,
+      10,
+    );
+  });
+
+  it("keeps probabilities summing to one on integer lines, where a push is live", () => {
+    const result = computeOverUnder(
+      { stat: "rushing_yards", mean: 40, sigma: 25, line: 40 },
+      gammaConfig,
+    );
+    expect(result.probPush).toBeGreaterThan(0);
+    expect(result.probOver + result.probUnder + result.probPush).toBeCloseTo(
+      1,
+      10,
+    );
+  });
+
+  it("degenerates safely at a zero projection instead of dividing by it", () => {
+    const result = computeOverUnder(
+      { stat: "receiving_yards", mean: 0, sigma: 10, line: 10.5 },
+      gammaConfig,
+    );
+    expect(result.probOver).toBe(0);
+    expect(result.probUnder).toBe(1);
+    expect(Number.isNaN(result.probOver)).toBe(false);
+  });
+
+  it("is monotone decreasing in the line", () => {
+    let previous = 1;
+    for (let line = 0.5; line < 200; line += 5) {
+      const { probOver } = computeOverUnder(
+        { stat: "receiving_yards", mean: 32, sigma: 23, line },
+        gammaConfig,
+      );
+      expect(probOver).toBeLessThanOrEqual(previous + 1e-12);
+      previous = probOver;
+    }
+  });
+});
 
 describe("poisson", () => {
   it("matches hand-computed values", () => {
@@ -104,7 +238,11 @@ describe("computeOverUnder — continuous stats", () => {
   it("prices a line at the projection near 50%", () => {
     const result = computeOverUnder(
       { stat: "receiving_yards", mean: 54.5, sigma: 26, line: 54.5 },
-      withConfig({ distribution: { yards: "normal" } }),
+      withConfig({
+        distribution: {
+          yards: { receiving_yards: "normal", rushing_yards: "normal", passing_yards: "normal" },
+        },
+      }),
     );
     expect(result.probOver).toBeCloseTo(0.5, 12);
   });
@@ -114,11 +252,19 @@ describe("computeOverUnder — continuous stats", () => {
     // normal below zero, which is impossible.
     const truncated = computeOverUnder(
       { stat: "receiving_yards", mean: 20, sigma: 24, line: 0.5 },
-      withConfig({ distribution: { yards: "truncated-normal" } }),
+      withConfig({
+        distribution: {
+          yards: { receiving_yards: "truncated-normal", rushing_yards: "truncated-normal", passing_yards: "truncated-normal" },
+        },
+      }),
     );
     const plain = computeOverUnder(
       { stat: "receiving_yards", mean: 20, sigma: 24, line: 0.5 },
-      withConfig({ distribution: { yards: "normal" } }),
+      withConfig({
+        distribution: {
+          yards: { receiving_yards: "normal", rushing_yards: "normal", passing_yards: "normal" },
+        },
+      }),
     );
     expect(truncated.probOver).toBeGreaterThan(plain.probOver);
     expect(truncated.probUnder).toBeLessThan(plain.probUnder);
