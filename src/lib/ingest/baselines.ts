@@ -164,7 +164,16 @@ export function computePositionPriors(
       if (totals.targets > 0) bucket.targetShares.push(row.targets / totals.targets);
       if (totals.carries > 0) bucket.rushShares.push(row.carries / totals.carries);
       if (totals.passAttempts > 0) {
-        bucket.passAttemptShares.push(row.attempts / totals.passAttempts);
+        const share = row.attempts / totals.passAttempts;
+        // QB pass-attempt share is close to bimodal (starter ~0.95-1.0,
+        // backup in relief ~0), not normally distributed around one mean.
+        // Pooling every week — starts and mop-up relief alike — drags the
+        // prior well below any established starter's true share, and
+        // shrink() then pulls every starter's baseline toward that too-low
+        // number even at a full season of games. Restricting to starter-like
+        // weeks keeps the prior representative of what it's actually used
+        // to anchor: a starting QB's expected share.
+        if (share > 0.5) bucket.passAttemptShares.push(share);
       }
     }
 
