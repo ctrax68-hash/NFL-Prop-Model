@@ -47,6 +47,30 @@ export interface ClosingLine {
   oddsUnderAmerican: number;
 }
 
+/**
+ * One user watching one market (a game/player/prop-type triple, not a
+ * specific book's propId — see `marketKey()` in `src/lib/engine/types.ts`).
+ * `captured*` fields are whatever was true at star-time, so a later "did
+ * this move" comparison has a concrete baseline without needing a separate
+ * price-history producer.
+ */
+export interface WatchedProp {
+  id: string;
+  userId: string;
+  gameId: string;
+  playerId: string;
+  propType: PropType;
+  season: number;
+  week: number;
+  playerName: string;
+  teamId: string;
+  capturedLineValue: number;
+  capturedSide: Side;
+  capturedEdge: number;
+  capturedOddsAmerican: number;
+  createdAt: string;
+}
+
 export interface SlateStore {
   readonly kind: string;
   saveSnapshot(snapshot: SlateSnapshot): Promise<void>;
@@ -68,6 +92,22 @@ export interface SlateStore {
   /** Only this user's own bets — see `supabase/migrations/0004_accounts.sql`. */
   listBets(userId: string): Promise<PlacedBet[]>;
   updateBets(bets: readonly PlacedBet[]): Promise<void>;
+
+  listWatchedProps(userId: string): Promise<WatchedProp[]>;
+  /**
+   * Star (or re-star) a market. Upserts on `(userId, gameId, playerId,
+   * propType)` — re-starring after a move resets the baseline, which is the
+   * correct semantics for "tell me when it moves *again*."
+   */
+  upsertWatchedProp(
+    prop: Omit<WatchedProp, "id" | "createdAt">,
+  ): Promise<void>;
+  removeWatchedProp(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void>;
 }
 
 /**

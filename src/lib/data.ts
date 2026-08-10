@@ -8,7 +8,7 @@
 import "server-only";
 
 import { createStore } from "./db/factory";
-import type { ClosingLine, PlacedBet, SlateStore } from "./db/store";
+import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./db/store";
 import { marketKey } from "./engine/types";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
@@ -82,6 +82,10 @@ export async function getSlate(
 
 export async function listBets(userId: string): Promise<PlacedBet[]> {
   return safely("listBets", [], () => getStore().listBets(userId));
+}
+
+export async function listWatchedProps(userId: string): Promise<WatchedProp[]> {
+  return safely("listWatchedProps", [], () => getStore().listWatchedProps(userId));
 }
 
 export async function getClosingLine(

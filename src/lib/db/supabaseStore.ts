@@ -14,9 +14,10 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import type { PropType } from "../engine/types";
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
-import type { ClosingLine, PlacedBet, SlateStore } from "./store";
+import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./store";
 
 export function createServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -344,6 +345,78 @@ export class SupabaseSlateStore implements SlateStore {
 
   async updateBets(bets: readonly PlacedBet[]): Promise<void> {
     await this.placeBets(bets);
+  }
+
+  async listWatchedProps(userId: string): Promise<WatchedProp[]> {
+    const { data, error } = await this.client
+      .from("watched_props")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Could not list watched props: ${error.message}`);
+
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      userId: row.user_id as string,
+      gameId: row.game_id as string,
+      playerId: row.player_id as string,
+      propType: row.prop_type as PropType,
+      season: row.season as number,
+      week: row.week as number,
+      playerName: row.player_name as string,
+      teamId: row.team_id as string,
+      capturedLineValue: row.captured_line_value as number,
+      capturedSide: row.captured_side as WatchedProp["capturedSide"],
+      capturedEdge: row.captured_edge as number,
+      capturedOddsAmerican: row.captured_odds_american as number,
+      createdAt: row.created_at as string,
+    }));
+  }
+
+  async upsertWatchedProp(
+    prop: Omit<WatchedProp, "id" | "createdAt">,
+  ): Promise<void> {
+    const { error } = await this.client.from("watched_props").upsert(
+      {
+        user_id: prop.userId,
+        game_id: prop.gameId,
+        player_id: prop.playerId,
+        prop_type: prop.propType,
+        season: prop.season,
+        week: prop.week,
+        player_name: prop.playerName,
+        team_id: prop.teamId,
+        captured_line_value: prop.capturedLineValue,
+        captured_side: prop.capturedSide,
+        captured_edge: prop.capturedEdge,
+        captured_odds_american: prop.capturedOddsAmerican,
+        // Re-starring resets the baseline, so bump created_at too — keeps
+        // this in parity with FileSlateStore, which generates a fresh row
+        // (new id/createdAt) on every star since it has no native upsert.
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,game_id,player_id,prop_type" },
+    );
+
+    if (error) throw new Error(`Could not save watched prop: ${error.message}`);
+  }
+
+  async removeWatchedProp(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("watched_props")
+      .delete()
+      .eq("user_id", userId)
+      .eq("game_id", gameId)
+      .eq("player_id", playerId)
+      .eq("prop_type", propType);
+
+    if (error) throw new Error(`Could not remove watched prop: ${error.message}`);
   }
 }
 

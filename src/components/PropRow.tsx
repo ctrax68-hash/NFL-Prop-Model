@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Star } from "lucide-react";
 
 import type { BoardRow, BoardRowBook } from "@/lib/data";
 import type { Side } from "@/lib/engine/types";
@@ -89,11 +89,16 @@ export function PropRow({
   season,
   week,
   index = 0,
+  isWatched = false,
+  onToggleWatch,
 }: {
   row: BoardRow;
   season: number;
   week: number;
   index?: number;
+  /** Only present for a signed-in user — logged-out visitors see no star. */
+  isWatched?: boolean;
+  onToggleWatch?: () => void;
 }) {
   const slip = useBetSlip();
   const [expanded, setExpanded] = useState(false);
@@ -179,7 +184,21 @@ export function PropRow({
           </div>
         </div>
 
-        <div className="relative z-[2] flex shrink-0 gap-1.5">
+        <div className="relative z-[2] flex shrink-0 items-center gap-1.5">
+          {onToggleWatch ? (
+            <button
+              type="button"
+              onClick={onToggleWatch}
+              aria-pressed={isWatched}
+              aria-label={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+              className="tap grid size-9 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--ink-mute)] transition-colors hover:border-[var(--gold)] hover:text-[var(--gold)]"
+            >
+              <Star
+                size={16}
+                className={isWatched ? "fill-[var(--gold)] text-[var(--gold)]" : undefined}
+              />
+            </button>
+          ) : null}
           <OddsButton
             side="over"
             odds={row.oddsOverAmerican}

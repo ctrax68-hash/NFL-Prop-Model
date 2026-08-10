@@ -7,7 +7,8 @@ import {
   Stat,
   SyntheticWarning,
 } from "@/components/ui";
-import { buildBoardRows, getSlate } from "@/lib/data";
+import { getCurrentUser } from "@/lib/auth";
+import { buildBoardRows, getSlate, listWatchedProps } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,8 @@ export default async function BoardPage({
   }
 
   const rows = buildBoardRows(snapshot);
+  const user = await getCurrentUser();
+  const watchedProps = user ? await listWatchedProps(user.id) : [];
   const totalUnits = snapshot.recommendations.reduce(
     (sum, bet) => sum + bet.kelly.recommendedUnits,
     0,
@@ -109,7 +112,13 @@ export default async function BoardPage({
           title="Prop Board"
           hint="Tap a price to add it to the slip. Ringed rows are the model's picks."
         />
-        <PropBoard rows={rows} season={snapshot.season} week={snapshot.week} />
+        <PropBoard
+          rows={rows}
+          season={snapshot.season}
+          week={snapshot.week}
+          user={user}
+          watchedProps={watchedProps}
+        />
       </div>
 
       <Card className="px-4 py-3">
