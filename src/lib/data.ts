@@ -80,8 +80,8 @@ export async function getSlate(
   });
 }
 
-export async function listBets(): Promise<PlacedBet[]> {
-  return safely("listBets", [], () => getStore().listBets());
+export async function listBets(userId: string): Promise<PlacedBet[]> {
+  return safely("listBets", [], () => getStore().listBets(userId));
 }
 
 export async function getClosingLine(

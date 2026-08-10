@@ -277,6 +277,7 @@ export class SupabaseSlateStore implements SlateStore {
     const { error } = await this.client.from("bet_results").upsert(
       bets.map((bet) => ({
         id: bet.id,
+        user_id: bet.userId,
         prop_id: bet.propId,
         season: bet.season,
         week: bet.week,
@@ -305,16 +306,18 @@ export class SupabaseSlateStore implements SlateStore {
     if (error) throw new Error(`Could not save bets: ${error.message}`);
   }
 
-  async listBets(): Promise<PlacedBet[]> {
+  async listBets(userId: string): Promise<PlacedBet[]> {
     const { data, error } = await this.client
       .from("bet_results")
       .select("*")
+      .eq("user_id", userId)
       .order("placed_at", { ascending: false });
 
     if (error) throw new Error(`Could not list bets: ${error.message}`);
 
     return (data ?? []).map((row) => ({
       id: row.id as string,
+      userId: row.user_id as string,
       propId: row.prop_id as string,
       season: row.season as number,
       week: row.week as number,

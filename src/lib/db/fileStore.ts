@@ -137,13 +137,19 @@ export class FileSlateStore implements SlateStore {
   }
 
   async placeBets(bets: readonly PlacedBet[]): Promise<void> {
-    const existing = await this.listBets();
+    const existing = await this.readAllBets();
     const byId = new Map(existing.map((bet) => [bet.id, bet]));
     for (const bet of bets) byId.set(bet.id, bet);
     await this.writeBets([...byId.values()]);
   }
 
-  async listBets(): Promise<PlacedBet[]> {
+  async listBets(userId: string): Promise<PlacedBet[]> {
+    const all = await this.readAllBets();
+    return all.filter((bet) => bet.userId === userId);
+  }
+
+  /** Every bet in the file, unfiltered — merge target for `placeBets`/`updateBets`. */
+  private async readAllBets(): Promise<PlacedBet[]> {
     if (!existsSync(this.betsPath)) return [];
     return JSON.parse(await readFile(this.betsPath, "utf8")) as PlacedBet[];
   }

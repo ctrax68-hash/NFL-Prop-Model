@@ -1,8 +1,10 @@
+import Link from "next/link";
 import clsx from "clsx";
 
 import { ExampleBetCard } from "@/components/ExampleBetCard";
 import { SettleButton } from "@/components/SettleButton";
 import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
+import { getCurrentUser } from "@/lib/auth";
 import { getClosingLine, listBets } from "@/lib/data";
 import type { ClosingLine, PlacedBet } from "@/lib/db/store";
 import { DEFAULT_CONFIG } from "@/lib/engine/config";
@@ -129,7 +131,31 @@ function BetCard({
 }
 
 export default async function TrackerPage() {
-  const bets = await listBets();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return (
+      <div className="space-y-4">
+        <h1 className="display text-[34px] font-black text-[var(--ink)]">TRACKER</h1>
+        <EmptyState
+          title="Sign in to see your bets"
+          body="Your placed bets and results live in your account. Sign in to view or start logging them."
+        />
+        <Link
+          href="/login"
+          className="tap flex min-h-[44px] w-fit items-center rounded-[var(--radius-pill)] px-4 text-sm font-bold text-[#04101f]"
+          style={{
+            background: "linear-gradient(180deg, var(--gold-bright), var(--gold))",
+            boxShadow: "var(--glow-gold)",
+          }}
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
+  const bets = await listBets(user.id);
 
   if (bets.length === 0) {
     return (

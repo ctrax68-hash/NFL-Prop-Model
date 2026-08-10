@@ -14,6 +14,7 @@ export type BetStatus = "pending" | "won" | "lost" | "push" | "void";
 
 export interface PlacedBet {
   id: string;
+  userId: string;
   propId: string;
   season: number;
   week: number;
@@ -64,7 +65,8 @@ export interface SlateStore {
   ): Promise<ClosingLine | null>;
 
   placeBets(bets: readonly PlacedBet[]): Promise<void>;
-  listBets(): Promise<PlacedBet[]>;
+  /** Only this user's own bets — see `supabase/migrations/0004_accounts.sql`. */
+  listBets(userId: string): Promise<PlacedBet[]>;
   updateBets(bets: readonly PlacedBet[]): Promise<void>;
 }
 

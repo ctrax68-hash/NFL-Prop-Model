@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
 import clsx from "clsx";
 
 import { SlatePicker } from "./SlatePicker";
+import { useBetSlip } from "./BetSlipProvider";
+import type { CurrentUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import type { SlateSummary } from "@/lib/pipeline/types";
 
 const LINKS = [
@@ -15,7 +18,58 @@ const LINKS = [
   { href: "/backtest", label: "Backtest" },
 ];
 
-export function Nav({ slates }: { slates: SlateSummary[] }) {
+function AuthStatus({ user }: { user: CurrentUser | null }) {
+  const router = useRouter();
+  const slip = useBetSlip();
+  const [signingOut, setSigningOut] = useState(false);
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="tap flex min-h-[36px] shrink-0 items-center rounded-[var(--radius-pill)] border border-[var(--border)] px-3 text-xs font-semibold text-[var(--ink-dim)] transition-colors hover:border-[var(--gold)] hover:text-[var(--gold)]"
+      >
+        Sign in
+      </Link>
+    );
+  }
+
+  async function signOut() {
+    setSigningOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    // A stranger on a shared device shouldn't see a leftover queued slip
+    // after the previous user signs out.
+    slip.clear();
+    router.refresh();
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={signOut}
+      disabled={signingOut}
+      title={user.email}
+      className="tap flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--border)] px-3 text-xs font-semibold text-[var(--ink-dim)] transition-colors hover:border-[var(--gold)] hover:text-[var(--gold)] disabled:opacity-60"
+    >
+      <span
+        aria-hidden
+        className="grid size-5 place-items-center rounded-full bg-[var(--obsidian-3)] text-[10px] font-black text-[var(--gold)]"
+      >
+        {user.email[0]?.toUpperCase()}
+      </span>
+      <span className="hidden sm:inline">{signingOut ? "Signing out…" : "Sign out"}</span>
+    </button>
+  );
+}
+
+export function Nav({
+  slates,
+  user,
+}: {
+  slates: SlateSummary[];
+  user: CurrentUser | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -94,6 +148,7 @@ export function Nav({ slates }: { slates: SlateSummary[] }) {
           <Suspense fallback={null}>
             <SlatePicker slates={slates} />
           </Suspense>
+          <AuthStatus user={user} />
         </div>
       </div>
     </header>
