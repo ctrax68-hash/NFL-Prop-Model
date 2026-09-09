@@ -18,9 +18,11 @@ on:
     # Thursday 16:00 UTC — before that night's kickoff, catches Thursday
     # Night Football's own closing line.
     - cron: "0 16 * * 4"
-    # Sunday 15:00 UTC — before the early kickoff window, catches the
-    # closing line for the rest of the week's games.
-    - cron: "0 15 * * 0"
+    # Sunday 9:00 AM CT (14:00 UTC during CDT) — before the early kickoff
+    # window, catches the closing line for the rest of the week's games.
+    # GitHub Actions cron is fixed UTC, so this drifts to 8:00 AM CT once
+    # CDT ends for the season (early November) unless adjusted then.
+    - cron: "0 14 * * 0"
 
 concurrency:
   group: scrape-and-store
