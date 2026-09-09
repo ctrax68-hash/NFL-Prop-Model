@@ -12,12 +12,13 @@
 export async function fetchWithTimeout(
   url: string | URL,
   timeoutMs = 30_000,
+  init: RequestInit = {},
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, { signal: controller.signal });
+    return await fetch(url, { ...init, signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Request to ${url} timed out after ${timeoutMs}ms`);

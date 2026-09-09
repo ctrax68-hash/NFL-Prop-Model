@@ -23,6 +23,8 @@ import {
 } from "../ingest/teamRates";
 import { buildDepthChartIndex, type DepthChartIndex } from "../ingest/depthChartIndex";
 import { buildInjuryIndex, type InjuryIndex } from "../ingest/injuryIndex";
+import { attachWeatherForecasts } from "../ingest/weather";
+import { STADIUM_COORDINATES } from "../ingest/stadiums";
 
 export interface DataBundle {
   seasons: number[];
@@ -76,11 +78,15 @@ export async function loadDataBundle(
 
   const snapCounts = snapBatches.flat();
   const teamWeeks = aggregateTeamWeeks(playerWeeks);
+  // No-ops entirely (returns `games` unchanged) unless NWS_USER_AGENT is set,
+  // and only ever fills in games that haven't been played and have no
+  // recorded temperature yet — see attachWeatherForecasts's own doc comment.
+  const gamesWithWeather = await attachWeatherForecasts(games, STADIUM_COORDINATES);
 
   return {
     seasons: [...seasons],
     playerWeeks,
-    games,
+    games: gamesWithWeather,
     snapCounts,
     teamWeeks,
     margins: buildMarginIndex(games),
