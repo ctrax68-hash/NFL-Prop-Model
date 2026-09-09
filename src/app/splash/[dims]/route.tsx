@@ -20,7 +20,10 @@ import { helmetDataUri } from "@/lib/brandAsset";
 
 /** Every size actually linked from `layout.tsx`, keep the two in sync. */
 const ALLOWED_SIZES = new Set([
-  "1290x2796", // iPhone 16/15/14 Pro Max
+  "1320x2868", // iPhone 17 Pro Max, 16 Pro Max
+  "1260x2736", // iPhone Air
+  "1206x2622", // iPhone 17 Pro, 17, 16 Pro
+  "1290x2796", // iPhone 16 Plus, 15 Plus, 15/14 Pro Max
   "1284x2778", // iPhone 14/13 Pro Max, 12 Pro Max
   "1179x2556", // iPhone 16/15 Pro, 16/15, 14 Pro
   "1170x2532", // iPhone 14, 13 Pro, 13, 12 Pro, 12

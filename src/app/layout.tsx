@@ -47,7 +47,10 @@ export const viewport: Viewport = {
  * `ALLOWED_SIZES` allowlist in sync with this list.
  */
 const SPLASH_SIZES = [
-  { dims: "1290x2796", width: 430, height: 932, ratio: 3 }, // 16/15/14 Pro Max
+  { dims: "1320x2868", width: 440, height: 956, ratio: 3 }, // 17 Pro Max, 16 Pro Max
+  { dims: "1260x2736", width: 420, height: 912, ratio: 3 }, // Air
+  { dims: "1206x2622", width: 402, height: 874, ratio: 3 }, // 17 Pro, 17, 16 Pro
+  { dims: "1290x2796", width: 430, height: 932, ratio: 3 }, // 16 Plus, 15 Plus, 15/14 Pro Max
   { dims: "1284x2778", width: 428, height: 926, ratio: 3 }, // 14/13/12 Pro Max, 12 Pro Max
   { dims: "1179x2556", width: 393, height: 852, ratio: 3 }, // 16/15 Pro, 16/15, 14 Pro
   { dims: "1170x2532", width: 390, height: 844, ratio: 3 }, // 14, 13 Pro, 13, 12 Pro, 12
@@ -67,6 +70,10 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Next 15 renders `appleWebApp.capable` as the unprefixed
+            `mobile-web-app-capable` only; iOS documents startup images
+            against the `apple-` one, so set it explicitly. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         {SPLASH_SIZES.map(({ dims, width, height, ratio }) => (
           <link
             key={dims}
