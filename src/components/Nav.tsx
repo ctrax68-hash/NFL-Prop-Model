@@ -14,6 +14,7 @@ import type { SlateSummary } from "@/lib/pipeline/types";
 const LINKS = [
   { href: "/schedule", label: "Schedule" },
   { href: "/", label: "Board" },
+  { href: "/edges", label: "Edges" },
   { href: "/parlay", label: "Parlay" },
   { href: "/tracker", label: "Tracker" },
   { href: "/backtest", label: "Backtest" },
