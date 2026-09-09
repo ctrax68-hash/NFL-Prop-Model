@@ -18,6 +18,8 @@ import type {
   PropLine,
   WeatherType,
 } from "../engine/types";
+import type { CalibrationMonitor } from "../calibration/monitor";
+import type { SigmaRefitReport } from "./sigmaRefit";
 
 export interface SlateGame {
   gameId: string;
@@ -109,6 +111,14 @@ export interface SlateSnapshot {
   actuals: PropActual[];
   /** Recent results per player, most recent first. */
   gameLogs: PlayerGameLogEntry[];
+  /** Present when the run re-fitted sigma rather than using the shipped models. */
+  sigmaRefit?: SigmaRefitReport;
+  /**
+   * How the model has been doing on the weeks already graded, as of this
+   * run — the running check that the calibration the backtest promised is
+   * still holding. Absent until the pipeline has graded a completed week.
+   */
+  calibration?: CalibrationMonitor;
 }
 
 export interface SlateSummary {

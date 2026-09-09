@@ -73,6 +73,17 @@ Backtest any span with
 `npm run backtest -- --seasons 2023-2024 --out .data/backtest.json`, then open
 `/backtest`.
 
+Every pipeline run also grades the preceding weeks whose stats have landed and
+rolls them into a running calibration check, shown on the Backtest page next to
+the historical replay. That check flags drift for a person to look at; it never
+changes a coefficient on its own.
+
+The pipeline can also re-fit the sigma models as of the week it is pricing
+(`--refit-sigma`, recorded on the run). It is opt-in because it measured worse:
+replayed over 2023-2025 it raised mean calibration error from 1.22pp to 1.49pp
+and cut hit rate from 60.9% to 58.8%, hurting every high-volume stat while
+helping only the QB count stats. The shipped fits stay the default.
+
 ---
 
 ## Data sources

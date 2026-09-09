@@ -1,16 +1,13 @@
 /**
  * National Weather Service pregame forecasts.
  *
- * NOTE ON VERIFICATION: written against NWS's documented, stable public API
- * shape (`api.weather.gov/points/{lat},{lon}` -> a `forecastHourly` URL ->
- * hourly periods with `startTime`/`endTime`/`temperature`/`windSpeed`/
- * `shortForecast`), but this sandbox's network policy blocks
- * `api.weather.gov` outright, so it has NOT been exercised against the live
- * service. Treat the field mapping as unverified until it has run for real —
- * same caveat this codebase already carries for the Odds API provider
- * (`src/lib/ingest/props/oddsApi.ts`). The GitHub Actions cron this feeds
- * has normal outbound internet access and is the first place this can
- * actually be confirmed.
+ * Uses NWS's documented public API shape (`api.weather.gov/points/{lat},{lon}`
+ * -> a `forecastHourly` URL -> hourly periods with `startTime`/`endTime`/
+ * `temperature`/`windSpeed`/`shortForecast`). Confirmed against the live
+ * service by the GitHub Actions pipeline run of 2026-09-09 (2026 week 1):
+ * every outdoor game came back with a temperature, wind and condition, and
+ * dome games were skipped as intended. The development sandbox itself
+ * blocks `api.weather.gov`, so local runs still see no forecasts.
  *
  * Deliberately does not use `fetchCsvText`'s permanent on-disk cache — a
  * forecast is time-sensitive and must never be served stale from a prior

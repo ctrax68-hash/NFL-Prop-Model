@@ -76,6 +76,11 @@ async function main(): Promise<void> {
       .join(" ")}`,
   );
 
+  // `--refit-sigma` replays with sigma re-fitted as of each week, as the live
+  // pipeline does, so the two can be compared on the same window.
+  const refitSigma = args["refit-sigma"] === true;
+  console.log(`Sigma models: ${refitSigma ? "re-fitted as of each week" : "shipped (static)"}`);
+
   console.log(`Loading data for ${seasons.join(", ")}...`);
   const bundle = await loadDataBundle(seasonsToLoad(seasons));
   const provider = createPropsProvider(providerName, bundle);
@@ -88,6 +93,7 @@ async function main(): Promise<void> {
     weeks,
     config,
     provider,
+    refitSigma,
     onProgress: (season, week, snapshot) => {
       process.stdout.write(
         `\r  ${season} week ${String(week).padStart(2)} — ` +

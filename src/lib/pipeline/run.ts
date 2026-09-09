@@ -21,6 +21,8 @@ import { computeDefenseRates } from "../ingest/defense";
 import { computeTeamRates } from "../ingest/teamRates";
 import { compareSeasonWeek, type SeasonWeek } from "../ingest/asOf";
 import { kickoffInstant } from "../ingest/kickoff";
+import { fitSigmaModels } from "../ingest/varianceModel";
+import { withRefitSigma } from "./sigmaRefit";
 import type { PropsProvider } from "../ingest/props/provider";
 import { SyntheticPropsProvider } from "../ingest/props/synthetic";
 import type { DataBundle } from "./bundle";
@@ -44,6 +46,11 @@ export interface PipelineOptions {
    * Their baselines look fine but they are hurt, cut or retired.
    */
   staleAfterWeeks?: number;
+  /**
+   * Re-fit the sigma models from every game played strictly before this
+   * week (see `sigmaRefit.ts`), instead of pricing with the shipped fit.
+   */
+  refitSigma?: boolean;
 }
 
 export const DEFAULT_STALE_AFTER_WEEKS = 3;
@@ -52,10 +59,14 @@ export async function runPipeline(
   bundle: DataBundle,
   options: PipelineOptions,
 ): Promise<SlateSnapshot> {
-  const config = options.config ?? DEFAULT_CONFIG;
+  const asOf: SeasonWeek = { season: options.season, week: options.week };
+  const baseConfig = options.config ?? DEFAULT_CONFIG;
+  const refit = options.refitSigma
+    ? withRefitSigma(baseConfig, fitSigmaModels(bundle.playerWeeks, asOf), asOf)
+    : null;
+  const config = refit ? refit.config : baseConfig;
   const provider = options.provider ?? new SyntheticPropsProvider();
   const bankroll = options.bankroll ?? 10000;
-  const asOf: SeasonWeek = { season: options.season, week: options.week };
 
   // --- Step 1: derive current team, defense and player baselines -----------
   // Every derivation below filters to games strictly before `asOf`.
@@ -265,6 +276,7 @@ export async function runPipeline(
     week: options.week,
     configVersion: config.configVersion,
     config,
+    ...(refit ? { sigmaRefit: refit.report } : {}),
     bankroll,
     propsProvider: provider.name,
     propsAreReal: provider.isReal,

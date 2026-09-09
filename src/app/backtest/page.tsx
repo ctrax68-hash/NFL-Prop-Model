@@ -6,8 +6,9 @@ import {
   CalibrationChart,
   EquityCurve,
 } from "@/components/charts";
+import { LiveCalibration } from "@/components/LiveCalibration";
 import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
-import { getBacktest } from "@/lib/data";
+import { getBacktest, getSlate } from "@/lib/data";
 import { formatPercent, formatSignedUnits, PROP_SHORT } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BacktestPage() {
-  const result = await getBacktest();
+  const [result, latest] = await Promise.all([getBacktest(), getSlate()]);
 
   if (!result) {
     return (
@@ -70,6 +71,11 @@ export default async function BacktestPage() {
           How the model that produced these numbers actually works →
         </Link>
       </div>
+
+      <LiveCalibration
+        monitor={latest?.calibration}
+        sigmaRefit={latest?.sigmaRefit}
+      />
 
       {/* The most important thing on this page: what these numbers do and do
           not establish. */}
