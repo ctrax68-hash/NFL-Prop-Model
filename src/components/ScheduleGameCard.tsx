@@ -6,25 +6,36 @@ import clsx from "clsx";
 
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
-import { PROP_SHORT, formatOdds, teamLabel } from "@/lib/format";
+import { PROP_SHORT, formatOdds, formatPercent, formatUnits, teamLabel } from "@/lib/format";
 import { Card, EdgeBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 const PREVIEW_COUNT = 5;
 
 function PickRow({ row }: { row: BoardRow }) {
+  const modelProb = row.bestSide === "over" ? row.modelProbOver : row.modelProbUnder;
+
   return (
     <Link
       href={`/prop/${encodeURIComponent(row.propId)}`}
-      className="tap flex min-h-[48px] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[rgba(32,26,36,0.5)] px-2.5 py-1.5 transition-colors hover:border-[var(--bronze)]"
+      className="tap flex min-h-[60px] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[rgba(32,26,36,0.5)] px-2.5 py-1.5 transition-colors hover:border-[var(--bronze)]"
     >
       <PlayerAvatar url={row.headshotUrl} name={row.playerName} size={32} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-semibold text-[var(--ink)]">
           {row.playerName}
         </span>
-        <span className="eyebrow text-[var(--ink-mute)]">
+        <span className="eyebrow block text-[var(--ink-mute)]">
           {PROP_SHORT[row.propType]} · {row.opponentLabel}
+        </span>
+        <span className="numeric block text-[11px] text-[var(--ink-dim)]">
+          proj {row.projectedValue.toFixed(1)} · model {formatPercent(modelProb, 0)}
+          {row.isRecommended ? (
+            <span className="font-bold text-[var(--gold)]">
+              {" "}
+              · {formatUnits(row.recommendedUnits)}
+            </span>
+          ) : null}
         </span>
       </span>
       <span className="numeric shrink-0 text-right text-xs text-[var(--ink-dim)]">
