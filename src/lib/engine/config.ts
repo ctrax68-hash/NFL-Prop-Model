@@ -189,7 +189,11 @@ export interface EngineConfig {
      *
      * Only present for stats where snap share was measured to add real signal
      * beyond what projected volume alone explains — see
-     * `scripts/fit-distribution.ts --zero`.
+     * `scripts/fit-distribution.ts --zero`. Notably absent: receiving_yards,
+     * despite `--zero` making as strong a case for it as receptions' own
+     * — see the comment inside `DEFAULT_CONFIG.distribution.hurdle` below
+     * for why it isn't here anyway: tried, and it measurably regressed held-
+     * out calibration rather than improving it.
      *
      * rushing_yards is `qbOnly`: a QB and a non-QB projected for the exact
      * same rushing volume have very different zero-rush rates — a QB's
@@ -206,6 +210,17 @@ export interface EngineConfig {
      * already fine on its own), so this is fit on QB rows only and gated to
      * QB props in `continuousOverUnder` — fixing the population that was
      * actually wrong without touching the one that wasn't.
+     *
+     * receptions is the one open question mark despite having a hurdle
+     * already: its bias is consistently negative (never flips sign) but grew
+     * from -2.46pp on 2023-24 to -4.26pp on 2025 — the first season never
+     * used to fit anything in this file. A sigma-model refit on an expanded
+     * 2020-24 window barely moved it (-4.26pp -> -4.22pp), ruling out
+     * variance as the cause; the discrete hurdle's own rescaling
+     * (`applyHurdle`) doesn't share receiving_yards' mean-inflation
+     * mechanism above, so that specific failure mode is ruled out too. No
+     * validated fix found — left as-is rather than adjusting a coefficient
+     * on a hunch. Worth another look with a dedicated diagnostic pass.
      */
     hurdle: Partial<Record<StatType, HurdleModel>>;
   };
@@ -388,6 +403,34 @@ export const DEFAULT_CONFIG: EngineConfig = {
         snapShareCoef: 0.2765,
         qbOnly: true,
       }, // n=1594, QB rows only
+      // No receiving_yards entry, despite `--zero`'s own numbers making as
+      // strong a case for one as receptions': a real, monotonic zero-rate
+      // gradient by snap-share tercile at every volume bin, an in-sample
+      // logistic fit that lands on the actual zero-rate almost exactly, and
+      // two independent fitting windows (2020-22, 2020-24) agreeing within a
+      // few percent on every coefficient. Tried it anyway
+      // ({ intercept: 1.7843, meanCoef: -0.9220, snapShareCoef: -1.1357 },
+      // n=13578, the 2020-22 fit) and it made held-out calibration measurably
+      // *worse*: the 2023-24 backtest's receiving_yards bias went from
+      // -1.18pp to -2.8pp, not toward zero.
+      //
+      // Best current explanation, unconfirmed: `familyMean = mean/(1-p0)`
+      // (see `continuousOverUnder`) inflates the gamma family's mean once a
+      // hurdle is active, but `sigma` is still `leagueSigma(sigmaModel,
+      // mean)` computed from the *original*, non-inflated mean — for
+      // rushing_yards this is harmless because the hurdle is QB-only, a
+      // small slice of that stat's props, but every receiving_yards prop
+      // clears MARKETS_BY_POSITION's minProjection (12-20 yards), which is
+      // already past the volume range where the zero-rate gap is largest, so
+      // broadening it to every prop compounds the mean/sigma mismatch across
+      // the whole population that actually gets priced. Fixing that
+      // properly means changing how sigma is computed for every hurdle-
+      // active stat, which risks the already-validated receptions and QB
+      // rushing_yards hurdles — too large a change to make on a hunch.
+      // Left off; the -2.1pp (2025) / -2.8pp (2023-24, with the reverted fit
+      // still in the config at measurement time) receiving_yards bias is a
+      // known, open item, not a fixed one. See scripts/fit-distribution.ts
+      // --seasons <window> --zero to reproduce.
     },
   },
 

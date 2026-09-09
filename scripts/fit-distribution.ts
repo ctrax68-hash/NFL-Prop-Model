@@ -336,7 +336,7 @@ interface ZeroInflationSample {
  * validation.
  */
 function buildZeroInflationSamples(
-  stat: "receptions" | "rush_attempts" | "rushing_yards",
+  stat: "receptions" | "rush_attempts" | "rushing_yards" | "receiving_yards",
   regular: readonly PlayerWeekLike[],
   snapIndex: ReadonlyMap<string, number>,
 ): ZeroInflationSample[] {
@@ -419,7 +419,12 @@ function reportZeroInflationBySnapShare(
   );
   console.log("  volume; a real spread means it carries marginal signal.");
 
-  for (const stat of ["receptions", "rush_attempts", "rushing_yards"] as const) {
+  for (const stat of [
+    "receptions",
+    "rush_attempts",
+    "rushing_yards",
+    "receiving_yards",
+  ] as const) {
     const samples = buildZeroInflationSamples(stat, regular, snapIndex);
 
     console.log("");
@@ -533,10 +538,11 @@ function reportHurdleFit(
 
   fitOne("receptions", regular, snapIndex, "all");
   fitOne("rushing_yards", regular, snapIndex, "qb-only");
+  fitOne("receiving_yards", regular, snapIndex, "all");
 }
 
 function fitOne(
-  stat: "receptions" | "rushing_yards",
+  stat: "receptions" | "rushing_yards" | "receiving_yards",
   regular: readonly PlayerWeekLike[],
   snapIndex: ReadonlyMap<string, number>,
   scope: "all" | "qb-only",
