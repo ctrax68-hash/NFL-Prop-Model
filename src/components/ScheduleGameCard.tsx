@@ -25,11 +25,14 @@ const PREVIEW_COUNT = 5;
  * of dropping off the page — it's done being bettable, but a settled score is
  * still worth a glance without a trip to the Tracker.
  *
- * While a game is actually in progress, the header swaps the kickoff time for
- * a live score (polled from ESPN — see `src/lib/live/espn.ts`) and each pick
- * row shows that player's current total for the stat next to the line. This
- * is a scoreboard, not a second opinion: nothing it shows ever changes a
- * projection, a price or a recommendation.
+ * The header always carries both the score and the time together, stacked at
+ * the top of the card rather than split across two rows: kickoff time before
+ * the game, score plus a live clock (polled from ESPN — see
+ * `src/lib/live/espn.ts`) once it starts, or FINAL plus the original kickoff
+ * once it's over. Each pick row also shows that player's current total for
+ * the stat next to the line while the game is live. This is a scoreboard,
+ * not a second opinion: nothing it shows ever changes a projection, a price
+ * or a recommendation.
  */
 export function ScheduleGameCard({
   game,
@@ -67,7 +70,7 @@ export function ScheduleGameCard({
   return (
     <Card className={clsx("min-w-0 p-4", finished && "opacity-55")}>
       <div className="mb-3">
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <Link
             href={`/games/${gameSlug(game.gameId)}`}
             className="min-w-0 text-sm font-bold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
@@ -76,22 +79,42 @@ export function ScheduleGameCard({
             <span className="text-[var(--ink-mute)]">@</span>{" "}
             {teamLabel(game.homeTeam)}
           </Link>
-          {finished ? (
-            <span className="eyebrow shrink-0 font-bold text-[var(--ink-mute)]">
-              FINAL {game.awayScore}-{game.homeScore}
-            </span>
-          ) : inProgress ? (
-            <span className="numeric shrink-0 text-right text-xs font-bold text-[var(--ink)]">
-              {teamLabel(game.awayTeam)} {live!.game.awayScore ?? 0} &ndash;{" "}
-              {teamLabel(game.homeTeam)} {live!.game.homeScore ?? 0}
-            </span>
-          ) : (
-            <Kickoff
-              kickoffAt={game.kickoffAt ?? null}
-              gameday={game.gameday}
-              className="eyebrow shrink-0 text-right text-[var(--ink-mute)]"
-            />
-          )}
+          {/* Score and time always travel together, right here at the top —
+              never split off into the weather row below. */}
+          <span className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+            {finished ? (
+              <>
+                <span className="eyebrow font-bold text-[var(--ink-mute)]">
+                  FINAL {game.awayScore}-{game.homeScore}
+                </span>
+                <Kickoff
+                  kickoffAt={game.kickoffAt ?? null}
+                  gameday={game.gameday}
+                  className="eyebrow text-[var(--ink-mute)]"
+                />
+              </>
+            ) : inProgress ? (
+              <>
+                <span className="numeric text-xs font-bold text-[var(--ink)]">
+                  {teamLabel(game.awayTeam)} {live!.game.awayScore ?? 0} &ndash;{" "}
+                  {teamLabel(game.homeTeam)} {live!.game.homeScore ?? 0}
+                </span>
+                <span className="eyebrow flex items-center gap-1 text-[var(--mint)]">
+                  <span
+                    aria-hidden
+                    className="pulse-dot inline-block size-1.5 rounded-full bg-[var(--mint)]"
+                  />
+                  {live!.game.detail || "Live"}
+                </span>
+              </>
+            ) : (
+              <Kickoff
+                kickoffAt={game.kickoffAt ?? null}
+                gameday={game.gameday}
+                className="eyebrow text-[var(--ink-mute)]"
+              />
+            )}
+          </span>
         </div>
         <div className="mt-1.5 flex items-center gap-1.5">
           <WeatherBadge
@@ -99,21 +122,6 @@ export function ScheduleGameCard({
             windSpeedMph={game.windSpeedMph}
             temperatureF={game.temperatureF}
           />
-          {finished ? (
-            <Kickoff
-              kickoffAt={game.kickoffAt ?? null}
-              gameday={game.gameday}
-              className="eyebrow text-[var(--ink-mute)]"
-            />
-          ) : inProgress ? (
-            <span className="eyebrow flex items-center gap-1 text-[var(--mint)]">
-              <span
-                aria-hidden
-                className="pulse-dot inline-block size-1.5 rounded-full bg-[var(--mint)]"
-              />
-              {live!.game.detail || "Live"}
-            </span>
-          ) : null}
         </div>
       </div>
 
