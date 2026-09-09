@@ -21,6 +21,8 @@ export interface PropEvaluationInput {
   playerGames: number;
   /** The player's own trailing offensive-snap share, for the hurdle model. */
   snapShare?: number | null;
+  /** The player's position — the rushing_yards hurdle's QB term. */
+  position?: string | null;
 }
 
 export interface PropEvaluation {
@@ -40,6 +42,8 @@ export interface PropEvaluation {
    * this.
    */
   snapShare: number | null;
+  /** Carried through for the same reason as `snapShare` — see its comment. */
+  isQb: boolean;
 
   /** Unconditional model probabilities; these three sum to 1. */
   modelProbOver: number;
@@ -89,6 +93,7 @@ export function evaluateProp(
       sigma,
       line: prop.lineValue,
       snapShare: input.snapShare,
+      isQb: input.position === "QB",
     },
     config,
   );
@@ -117,6 +122,7 @@ export function evaluateProp(
     sigma,
     distribution,
     snapShare: input.snapShare ?? null,
+    isQb: input.position === "QB",
 
     modelProbOver: probOver,
     modelProbUnder: probUnder,

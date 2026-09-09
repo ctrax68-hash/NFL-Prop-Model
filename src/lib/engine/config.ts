@@ -32,6 +32,12 @@ export interface HurdleModel {
   intercept: number;
   meanCoef: number;
   snapShareCoef: number;
+  /**
+   * Restricts this model to QB props only (see the field comment on
+   * `distribution.hurdle` below for why rushing_yards needs this). Absent
+   * means it applies to every player at this stat, as receptions always has.
+   */
+  qbOnly?: boolean;
 }
 
 export type YardsDistribution = "truncated-normal" | "normal" | "gamma";
@@ -184,6 +190,22 @@ export interface EngineConfig {
      * Only present for stats where snap share was measured to add real signal
      * beyond what projected volume alone explains — see
      * `scripts/fit-distribution.ts --zero`.
+     *
+     * rushing_yards is `qbOnly`: a QB and a non-QB projected for the exact
+     * same rushing volume have very different zero-rush rates — a QB's
+     * volume comes from occasional scrambles even when the plan is to pass, a
+     * non-QB's from called runs — and `scripts/fit-distribution.ts --zero`'s
+     * `ZERO-RATE vs POSITION` section shows it directly: at the same
+     * trailing-average volume, a QB is roughly half to a third as likely to
+     * finish with exactly zero rushing yards as a non-QB. Without this, the
+     * board priced tiny "anytime rushed for positive yards"-style lines on
+     * pocket passers (Stafford, Rodgers, Goff) at 86-91% when their own
+     * trailing zero-rush rate was 27-35%. A first attempt fit one model
+     * jointly across both groups with a QB indicator term; that measurably
+     * worsened non-QB calibration in the 2023-25 backtest (non-QB rushing was
+     * already fine on its own), so this is fit on QB rows only and gated to
+     * QB props in `continuousOverUnder` — fixing the population that was
+     * actually wrong without touching the one that wasn't.
      */
     hurdle: Partial<Record<StatType, HurdleModel>>;
   };
@@ -318,6 +340,12 @@ export const DEFAULT_CONFIG: EngineConfig = {
     // (+1.1pp bias) without this.
     hurdle: {
       receptions: { intercept: -0.3268, meanCoef: -1.4815, snapShareCoef: -0.3889 }, // n=13747
+      rushing_yards: {
+        intercept: -0.5815,
+        meanCoef: -0.6765,
+        snapShareCoef: 0.2765,
+        qbOnly: true,
+      }, // n=1594, QB rows only
     },
   },
 

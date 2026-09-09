@@ -61,6 +61,7 @@ export default async function PropDetailPage({
       mean: evaluation.projectedValue,
       sigma: evaluation.sigma,
       snapShare: evaluation.snapShare,
+      isQb: evaluation.isQb,
     },
     snapshot.config,
   );

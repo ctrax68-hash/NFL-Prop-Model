@@ -17,6 +17,7 @@ function makeEvaluation(overrides: Partial<PropEvaluation> = {}): PropEvaluation
     sigma: 1.5,
     distribution: "negative-binomial",
     snapShare: null,
+    isQb: false,
     modelProbOver: 0.7,
     modelProbUnder: 0.28,
     modelProbPush: 0.02,

@@ -108,6 +108,7 @@ function chooseLine(
   sigma: number,
   config: EngineConfig,
   snapShare: number | null,
+  isQb: boolean,
 ): { lineValue: number; bookProbOver: number } {
   const step = lineStep(propType);
   const centre = roundLine(propType, bookMean);
@@ -126,7 +127,7 @@ function chooseLine(
     // median of a distribution the model no longer actually believes, which
     // reintroduces a bias by construction rather than measuring one.
     const { probOver } = computeOverUnder(
-      { stat: propType, mean: bookMean, sigma, line: lineValue, snapShare },
+      { stat: propType, mean: bookMean, sigma, line: lineValue, snapShare, isQb },
       config,
     );
 
@@ -195,6 +196,7 @@ export class SyntheticPropsProvider implements PropsProvider {
           sigma,
           config,
           baseline.baselineSnapShare ?? null,
+          projection.position === "QB",
         );
 
         // The book prices the line it posted according to its own view, then

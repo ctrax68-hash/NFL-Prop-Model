@@ -51,6 +51,7 @@ interface PlayerWeekLike {
   seasonType: string;
   name: string;
   team: string;
+  position: string;
   season: number;
   week: number;
   receivingYards: number;
@@ -300,6 +301,7 @@ async function main(): Promise<void> {
 
   if (args.zero) {
     reportZeroInflationBySnapShare(regular, snapIndex);
+    reportZeroRateByPosition(regular, snapIndex);
   }
 
   if (args["fit-hurdle"]) {
@@ -320,6 +322,7 @@ interface ZeroInflationSample {
   baseline: number;
   snapShare: number;
   actual: number;
+  isQb: boolean;
 }
 
 /**
@@ -333,7 +336,7 @@ interface ZeroInflationSample {
  * validation.
  */
 function buildZeroInflationSamples(
-  stat: "receptions" | "rush_attempts",
+  stat: "receptions" | "rush_attempts" | "rushing_yards",
   regular: readonly PlayerWeekLike[],
   snapIndex: ReadonlyMap<string, number>,
 ): ZeroInflationSample[] {
@@ -371,7 +374,12 @@ function buildZeroInflationSamples(
       if (known.length === 0) continue;
       const snapShare = known.reduce((s, v) => s + v, 0) / known.length;
 
-      samples.push({ baseline, snapShare, actual: values[i] });
+      samples.push({
+        baseline,
+        snapShare,
+        actual: values[i],
+        isQb: ordered[i].position === "QB",
+      });
     }
   }
   return samples;
@@ -411,7 +419,7 @@ function reportZeroInflationBySnapShare(
   );
   console.log("  volume; a real spread means it carries marginal signal.");
 
-  for (const stat of ["receptions", "rush_attempts"] as const) {
+  for (const stat of ["receptions", "rush_attempts", "rushing_yards"] as const) {
     const samples = buildZeroInflationSamples(stat, regular, snapIndex);
 
     console.log("");
@@ -449,13 +457,70 @@ function reportZeroInflationBySnapShare(
 }
 
 /**
- * Fit the receptions hurdle model: logistic regression of P(actual=0) on
- * projected volume and snap share, using the exact sample construction
- * `--zero` reports against.
+ * Zero-rate within each volume bin, split by QB vs everyone else, for the
+ * rushing stats. Position is not one of the hurdle model's own predictors —
+ * this checks whether it needs to be, i.e. whether two players projected for
+ * the same rushing volume still have very different zero-rush rates
+ * depending on whether that volume comes from called runs (RB/WR) or
+ * scrambles (QB). `--zero`'s pooled-position view cannot show this: pooling
+ * bakes in the assumption that volume alone is the right conditioning
+ * variable, which is exactly the thing being checked here.
+ */
+function reportZeroRateByPosition(
+  regular: readonly PlayerWeekLike[],
+  snapIndex: ReadonlyMap<string, number>,
+): void {
+  console.log("");
+  console.log("=".repeat(72));
+  console.log("ZERO-RATE vs POSITION — does QB need its own zero-inflation?");
+  console.log("=".repeat(72));
+
+  for (const stat of ["rushing_yards", "rush_attempts"] as const) {
+    const samples = buildZeroInflationSamples(stat, regular, snapIndex);
+    console.log("");
+    console.log(`${stat}  (n=${samples.length})`);
+    console.log(
+      `  ${"volume".padEnd(11)} ${"group".padEnd(9)} ${"n".padStart(6)} ${"P(zero)".padStart(9)}`,
+    );
+
+    for (const [lo, hi] of BINS) {
+      const inBin = samples.filter((s) => s.baseline >= lo && s.baseline < hi);
+      if (inBin.length < 40) continue;
+
+      for (const [label, group] of [
+        ["QB", inBin.filter((s) => s.isQb)],
+        ["non-QB", inBin.filter((s) => !s.isQb)],
+      ] as const) {
+        if (group.length < 20) continue;
+        const zeroRate = group.filter((s) => s.actual === 0).length / group.length;
+        console.log(
+          `  ${`${lo}-${hi}`.padEnd(11)} ${label.padEnd(9)} ${String(group.length).padStart(6)} ` +
+            `${`${(zeroRate * 100).toFixed(1)}%`.padStart(9)}`,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Fit a hurdle model: logistic regression of P(actual=0) on projected volume
+ * and snap share, using the exact sample construction `--zero` reports
+ * against.
  *
- * Not run for rush_attempts — `--zero`'s own output showed a materially
- * weaker, noisier snap-share relationship there, and rush_attempts is already
- * well-calibrated (+1.1pp bias) without a hurdle.
+ * rush_attempts on its own is not run: `--zero`'s pooled-position output
+ * showed a materially weaker, noisier snap-share relationship there, and it
+ * is already well-calibrated (+1.1pp bias) without a hurdle.
+ *
+ * rushing_yards is fit QB-only, not jointly with a QB dummy: a joint fit
+ * (one intercept/meanCoef/snapShareCoef shared across both groups, plus a QB
+ * offset) measurably worsened non-QB calibration in the 2023-25 backtest
+ * relative to no hurdle at all — non-QB rushing_yards was already reasonably
+ * calibrated on its own, and forcing it through a relationship fit jointly
+ * with QB data pulled it off. QB rushing_yards, by contrast, has no hurdle
+ * competing with it (there was none before this), so isolating the fit to
+ * QB rows only and gating its application to QB props (see `isQb` in
+ * `continuousOverUnder`) fixes the population that was actually wrong
+ * without touching the one that wasn't.
  */
 function reportHurdleFit(
   regular: readonly PlayerWeekLike[],
@@ -466,7 +531,20 @@ function reportHurdleFit(
   console.log("FIT hurdle model — paste into config.ts distribution.hurdle");
   console.log("=".repeat(72));
 
-  const samples = buildZeroInflationSamples("receptions", regular, snapIndex);
+  fitOne("receptions", regular, snapIndex, "all");
+  fitOne("rushing_yards", regular, snapIndex, "qb-only");
+}
+
+function fitOne(
+  stat: "receptions" | "rushing_yards",
+  regular: readonly PlayerWeekLike[],
+  snapIndex: ReadonlyMap<string, number>,
+  scope: "all" | "qb-only",
+): void {
+  const allSamples = buildZeroInflationSamples(stat, regular, snapIndex);
+  const samples =
+    scope === "qb-only" ? allSamples.filter((s) => s.isQb) : allSamples;
+
   // log(mean), not raw mean: mean and snap share are correlated at 0.70 in
   // this sample, and a linear-in-mean term let the optimiser route mean's own
   // effect through the correlated snap-share coefficient — flipping its sign
@@ -480,20 +558,21 @@ function reportHurdleFit(
 
   const fit = logisticFit(points);
   if (!fit) {
-    console.log(`  receptions: not enough data (n=${points.length})`);
+    console.log(`  ${stat} (${scope}): not enough data (n=${points.length})`);
     return;
   }
 
   const [meanCoef, snapShareCoef] = fit.coefficients;
   console.log(
-    `  receptions: { intercept: ${fit.intercept.toFixed(4)}, meanCoef: ${meanCoef.toFixed(4)}, snapShareCoef: ${snapShareCoef.toFixed(4)} }, // n=${points.length}`,
+    `  ${stat} (${scope}): { intercept: ${fit.intercept.toFixed(4)}, meanCoef: ${meanCoef.toFixed(4)}, ` +
+      `snapShareCoef: ${snapShareCoef.toFixed(4)} }, // n=${points.length}`,
   );
 
   // In-sample fit quality only — this is not the held-out validation. Run
   // this on 2020-2022 and check calibrateByPropType on the 2023-2024 backtest
   // separately, same discipline as the sigma refit.
-  const predictions = points.map(
-    (p) => sigmoid(fit.intercept + meanCoef * p.x[0] + snapShareCoef * p.x[1]),
+  const predictions = points.map((p) =>
+    sigmoid(fit.intercept + meanCoef * p.x[0] + snapShareCoef * p.x[1]),
   );
   const actualZeroRate = points.filter((p) => p.y === 1).length / points.length;
   const meanPredictedZeroRate =

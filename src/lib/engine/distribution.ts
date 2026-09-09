@@ -223,6 +223,8 @@ export interface OverUnderInput {
    * ignored, so omitting it never changes behaviour.
    */
   snapShare?: number | null;
+  /** Whether this player is a QB — the rushing_yards hurdle's qbCoef term. */
+  isQb?: boolean;
 }
 
 export interface OverUnderResult {
@@ -248,10 +250,12 @@ export function computeOverUnder(
   const { stat, line } = input;
   const mean = Math.max(0, input.mean);
   const sigma = Math.max(1e-6, input.sigma);
+  const snapShare = input.snapShare ?? null;
+  const isQb = input.isQb ?? false;
 
   return isDiscreteStat(stat)
-    ? discreteOverUnder(stat, mean, sigma, line, config, input.snapShare ?? null)
-    : continuousOverUnder(stat, mean, sigma, line, config);
+    ? discreteOverUnder(stat, mean, sigma, line, config, snapShare, isQb)
+    : continuousOverUnder(stat, mean, sigma, line, config, snapShare, isQb);
 }
 
 /**
@@ -312,14 +316,60 @@ export function yardsFamily(
   );
 }
 
+/**
+ * Continuous analogue of {@link applyHurdle}: squeeze the base family's
+ * survival function into the `1 - hurdleP0` of the probability mass that
+ * remains once the true `P(X=0)` point mass is carved out. A continuous
+ * family has zero density at any single point by construction, so without
+ * this a gamma or normal fit can never represent "this player quite often
+ * finishes with exactly zero" no matter how its mean and sigma are tuned —
+ * that is a shape the family itself cannot express, the same reason the
+ * discrete hurdle exists for receptions.
+ */
+function applyContinuousHurdle(
+  baseSurvival: (x: number) => number,
+  hurdleP0: number,
+): (x: number) => number {
+  return (x: number) => (x <= 0 ? 1 : (1 - hurdleP0) * baseSurvival(x));
+}
+
 function continuousOverUnder(
   stat: StatType,
   mean: number,
   sigma: number,
   line: number,
   config: EngineConfig,
+  snapShare: number | null,
+  isQb: boolean,
 ): OverUnderResult {
-  const { survival, label } = continuousSurvival(stat, mean, sigma, config);
+  const hurdleModel = config.distribution.hurdle[stat];
+  const activeHurdle =
+    hurdleModel != null && snapShare != null && hurdleApplies(hurdleModel, isQb)
+      ? hurdleModel
+      : null;
+
+  let hurdleP0 = 0;
+  let familyMean = mean;
+  if (activeHurdle != null && snapShare != null) {
+    hurdleP0 = hurdleZeroProb(activeHurdle, mean, snapShare);
+    // `mean` is the projection's overall expectation, zero games included —
+    // it is what estimateSigma and the baseline were fit against. The
+    // continuous family below only ever describes the *nonzero* outcomes
+    // once the hurdle carves out `hurdleP0` at exactly zero, so it needs the
+    // conditional mean given nonzero, not the overall one: E[X] = (1-p0)*
+    // E[X|X>0], so E[X|X>0] = mean / (1-p0). Skipping this silently drags the
+    // whole projection down by a factor of (1-p0) — the gamma's own P(X≈0)
+    // is already ~0, so injecting a large zero mass on top without raising
+    // the conditional mean understates every nonzero outcome to compensate.
+    familyMean = hurdleP0 < 1 ? mean / (1 - hurdleP0) : mean;
+  }
+
+  let { survival, label } = continuousSurvival(stat, familyMean, sigma, config);
+
+  if (activeHurdle != null) {
+    survival = applyContinuousHurdle(survival, hurdleP0);
+    label = `${label}-hurdle`;
+  }
 
   // Yardage totals are integers in reality even though we model them
   // continuously, so an integer line can push. Apply a continuity correction:
@@ -363,6 +413,11 @@ export function hurdleZeroProb(
   );
 }
 
+/** Whether a hurdle model applies to this player — see `HurdleModel.qbOnly`. */
+function hurdleApplies(model: HurdleModel, isQb: boolean): boolean {
+  return !model.qbOnly || isQb;
+}
+
 /**
  * Rescale a base count distribution's cdf/pmf to a hurdle model's `P(X=0)`,
  * carrying the rest of the shape's mass over zero-truncated. At
@@ -399,6 +454,7 @@ function discreteOverUnder(
   line: number,
   config: EngineConfig,
   snapShare: number | null,
+  isQb: boolean,
 ): OverUnderResult {
   const variance = sigma * sigma;
   const preference = config.distribution.counts;
@@ -408,7 +464,7 @@ function discreteOverUnder(
   let distribution: string;
 
   if (preference === "normal") {
-    return continuousOverUnder(stat, mean, sigma, line, config);
+    return continuousOverUnder(stat, mean, sigma, line, config, snapShare, isQb);
   }
 
   const overdispersed =
@@ -430,7 +486,7 @@ function discreteOverUnder(
   }
 
   const hurdleModel = config.distribution.hurdle[stat];
-  if (hurdleModel != null && snapShare != null) {
+  if (hurdleModel != null && snapShare != null && hurdleApplies(hurdleModel, isQb)) {
     const hurdleP0 = hurdleZeroProb(hurdleModel, mean, snapShare);
     ({ cdf, pmf } = applyHurdle(cdf, pmf, hurdleP0));
     distribution = `${distribution}-hurdle`;
@@ -492,7 +548,8 @@ export function densityCurve(
     // never disagree with the price beside it.
     const hurdleModel = config.distribution.hurdle[input.stat];
     const snapShare = input.snapShare ?? null;
-    if (hurdleModel != null && snapShare != null) {
+    const isQb = input.isQb ?? false;
+    if (hurdleModel != null && snapShare != null && hurdleApplies(hurdleModel, isQb)) {
       const basePmf = pmf;
       const baseP0 = basePmf(0);
       const survivingMass = 1 - baseP0;
@@ -516,10 +573,26 @@ export function densityCurve(
   const family = yardsFamily(input.stat, config);
 
   if (family === "gamma") {
-    const { shape, scale } = gammaParams(mean, sigma);
+    // Same mean-inflation and rescale continuousOverUnder applies, so the
+    // chart never disagrees with the price beside it — see the comment on
+    // `familyMean` there for why the conditional mean must be raised.
+    const hurdleModel = config.distribution.hurdle[input.stat];
+    const snapShare = input.snapShare ?? null;
+    const isQb = input.isQb ?? false;
+    let hurdleP0 = 0;
+    let familyMean = mean;
+    if (hurdleModel != null && snapShare != null && hurdleApplies(hurdleModel, isQb)) {
+      hurdleP0 = hurdleZeroProb(hurdleModel, mean, snapShare);
+      familyMean = hurdleP0 < 1 ? mean / (1 - hurdleP0) : mean;
+    }
+    const { shape, scale } = gammaParams(familyMean, sigma);
+    const hurdleScale = 1 - hurdleP0;
     for (let i = 0; i < points; i += 1) {
       const x = i * step;
-      out.push({ x, y: mean <= 1e-9 ? 0 : gammaPdf(x, shape, scale) });
+      out.push({
+        x,
+        y: mean <= 1e-9 ? 0 : hurdleScale * gammaPdf(x, shape, scale),
+      });
     }
     return out;
   }
