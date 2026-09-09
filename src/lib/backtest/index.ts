@@ -113,6 +113,8 @@ export interface BacktestOptions {
   config?: EngineConfig;
   provider?: PropsProvider;
   bankroll?: number;
+  /** Re-fit sigma as of each replayed week, the way the live pipeline can. */
+  refitSigma?: boolean;
   onProgress?: (season: number, week: number, snapshot: SlateSnapshot) => void;
 }
 
@@ -139,6 +141,7 @@ export async function runBacktest(
         config,
         provider,
         bankroll: options.bankroll,
+        refitSigma: options.refitSigma,
       });
 
       // Nothing to grade for a week that has not been played.

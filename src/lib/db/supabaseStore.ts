@@ -264,6 +264,19 @@ export class SupabaseSlateStore implements SlateStore {
     );
   }
 
+  async updateSnapshot(snapshot: SlateSnapshot): Promise<void> {
+    const { data, error } = await this.client
+      .from("pipeline_runs")
+      .update({ snapshot })
+      .eq("run_id", snapshot.runId)
+      .select("run_id");
+
+    if (error) throw new Error(`Could not update run ${snapshot.runId}: ${error.message}`);
+    if (!data || data.length === 0) {
+      throw new Error(`Run ${snapshot.runId} does not exist; nothing to update.`);
+    }
+  }
+
   async loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null> {
     const { data: runs, error } = await this.client
       .from("pipeline_runs")

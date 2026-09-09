@@ -117,6 +117,12 @@ export interface AlertSubscription {
 export interface SlateStore {
   readonly kind: string;
   saveSnapshot(snapshot: SlateSnapshot): Promise<void>;
+  /**
+   * Rewrite the stored document of a run that already exists (matched on
+   * `runId`), for attaching actuals to a week after it has been played.
+   * Never inserts: a run that isn't there is an error, not a new run.
+   */
+  updateSnapshot(snapshot: SlateSnapshot): Promise<void>;
   loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null>;
   listSlates(): Promise<SlateSummary[]>;
   /**

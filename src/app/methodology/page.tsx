@@ -291,6 +291,19 @@ export default function MethodologyPage() {
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-xs leading-relaxed text-[var(--ink-dim)]">
+          These are the shipped fits (2020&ndash;2022, validated out of sample
+          on 2023&ndash;24). The pipeline can instead re-fit them as of each
+          week from everything played before it &mdash; that was built and
+          measured, and it lost: replayed over 2023&ndash;2025 it raised mean
+          calibration error from 1.22pp to 1.49pp and cut hit rate from 60.9%
+          to 58.8%, worse on every high-volume stat and better only on the QB
+          count stats. So it stays opt-in and these fits stay the default. What
+          does run every week is the check: the weeks already played this
+          season are graded and compared with the historical replay on the
+          Backtest page. That flags drift for a person to look at and changes
+          nothing on its own.
+        </p>
       </Card>
 
       <Card className="p-4">

@@ -106,6 +106,15 @@ export class FileSlateStore implements SlateStore {
     );
   }
 
+  // One file per week, so "the run with this id" is whatever that file holds.
+  async updateSnapshot(snapshot: SlateSnapshot): Promise<void> {
+    const existing = await this.loadSnapshot(snapshot.season, snapshot.week);
+    if (!existing || existing.runId !== snapshot.runId) {
+      throw new Error(`Run ${snapshot.runId} does not exist; nothing to update.`);
+    }
+    await this.saveSnapshot(snapshot);
+  }
+
   async loadSnapshot(season: number, week: number): Promise<SlateSnapshot | null> {
     return this.readJson<SlateSnapshot>(this.slatePath(season, week));
   }

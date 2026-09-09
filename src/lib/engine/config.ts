@@ -384,6 +384,21 @@ export const DEFAULT_CONFIG: EngineConfig = {
     // small-sample artefact (n=178) rather than the real pattern it was
     // described as. Holding sigma constant across volume left QB props the
     // worst-calibrated markets on the board.
+    //
+    // Tried and rejected: re-fitting these every week from everything played
+    // before the week being priced (`scripts/pipeline.ts --refit-sigma`,
+    // each parameter held within ±50% of the value here). Replayed over
+    // 2023-2025 (54 weeks, 31,005 graded props, no lookahead) it raised mean
+    // calibration error from 1.22pp to 1.49pp and cut hit rate from 60.9% to
+    // 58.8%. Every high-volume stat got worse (receiving_yards bias -1.44pp ->
+    // -1.85pp, rushing_yards -1.62 -> -1.90, receptions -2.97 -> -3.03); only
+    // the QB count stats improved (pass_attempts +2.28 -> +1.44,
+    // pass_completions +2.73 -> +2.27, rush_attempts +1.44 -> +1.10). The
+    // weekly fits land on lower slopes than these, which thins the tails
+    // exactly where the volume is — so a fresher fit is not a better one.
+    // Refitting only the QB count stats might pass, but picking the winners
+    // off the same replay that ranked them is how a model overfits; it would
+    // need its own held-out validation first.
     sigmaModels: {
       receiving_yards: { intercept: 7.4244, slope: 0.5349, min: 6 }, // n=635
       rushing_yards: { intercept: 4.6355, slope: 0.5701, min: 5 }, // n=477
