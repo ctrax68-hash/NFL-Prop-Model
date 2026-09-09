@@ -18,6 +18,7 @@
  */
 
 import { fetchWithTimeout } from "./fetchWithTimeout";
+import { toEasternIso } from "./kickoff";
 import type { WeatherType } from "../engine/types";
 
 const NWS_BASE = "https://api.weather.gov";
@@ -197,22 +198,4 @@ export async function attachWeatherForecasts<T extends WeatherForecastGame>(
       };
     }),
   );
-}
-
-/** `"2026-09-13"` + `"13:00"` (US/Eastern) -> a real ISO instant. */
-function toEasternIso(gameday: string, gametime: string): string {
-  // Format the same wall-clock date/time as if it were in New York, then let
-  // Intl report which UTC offset actually applied that day (handles the
-  // EST/EDT transition without hand-coding the DST boundary dates).
-  const naiveUtc = new Date(`${gameday}T${gametime}:00Z`);
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    timeZoneName: "shortOffset",
-  }).formatToParts(naiveUtc);
-  const offsetPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT-5";
-  const offsetMatch = /GMT([+-]\d+)/.exec(offsetPart);
-  const offsetHours = offsetMatch ? Number(offsetMatch[1]) : -5;
-  const sign = offsetHours <= 0 ? "-" : "+";
-  const abs = Math.abs(offsetHours).toString().padStart(2, "0");
-  return `${gameday}T${gametime}:00${sign}${abs}:00`;
 }

@@ -47,14 +47,16 @@ export default async function SchedulePage({
   const rows = buildBoardRows(snapshot);
 
   // Games still to be played, soonest first; finished games trail behind them
-  // in the same chronological order rather than dropping off the page.
+  // in the same chronological order rather than dropping off the page. Both
+  // keys are ISO strings, so a kickoff instant and a bare date sort together.
+  const kickoffKey = (game: SlateGame) => game.kickoffAt ?? game.gameday;
   const games = [...snapshot.games].sort((a, b) => {
     const aFinished = isFinished(a);
     const bFinished = isFinished(b);
     if (aFinished !== bFinished) return aFinished ? 1 : -1;
-    return a.gameday === b.gameday
-      ? a.gameId.localeCompare(b.gameId)
-      : a.gameday.localeCompare(b.gameday);
+    return (
+      kickoffKey(a).localeCompare(kickoffKey(b)) || a.gameId.localeCompare(b.gameId)
+    );
   });
 
   const rowsByGame = new Map<string, BoardRow[]>();
@@ -94,7 +96,11 @@ export default async function SchedulePage({
           </p>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        // Explicit minmax(0,1fr) columns: an implicit `auto` column grows to
+        // the widest card's min-content, so one long player name in a preview
+        // row (a nowrap line) widened every card past the phone's viewport
+        // and clipped the edge badges.
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {games.map((game) => {
             const finished = isFinished(game);
             const picks = (rowsByGame.get(game.gameId) ?? [])

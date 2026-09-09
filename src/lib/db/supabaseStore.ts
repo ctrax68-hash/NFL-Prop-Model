@@ -17,6 +17,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { PropType } from "../engine/types";
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
+import { latestRunPerSlate } from "./latestRunPerSlate";
 import type {
   AlertSubscription,
   ClosingLine,
@@ -353,13 +354,33 @@ export class SupabaseSlateStore implements SlateStore {
   }
 
   async listSlates(): Promise<SlateSummary[]> {
-    const { data, error } = await this.client
+    // Two round trips on purpose: the index-only pass finds the newest run
+    // per week, so the second only pulls the snapshot documents that will
+    // actually be summarised, instead of every historical run's full jsonb.
+    const { data: runs, error } = await this.client
+      .from("pipeline_runs")
+      .select("run_id, season, week, generated_at");
+
+    if (error) throw new Error(`Could not list slates: ${error.message}`);
+
+    const latest = latestRunPerSlate(
+      (runs ?? []) as Array<{ run_id: string; season: number; week: number; generated_at: string }>,
+    );
+    if (latest.length === 0) return [];
+
+    const { data, error: snapshotError } = await this.client
       .from("pipeline_runs")
       .select("snapshot")
+      .in(
+        "run_id",
+        latest.map((run) => run.run_id),
+      )
       .order("season", { ascending: false })
       .order("week", { ascending: false });
 
-    if (error) throw new Error(`Could not list slates: ${error.message}`);
+    if (snapshotError) {
+      throw new Error(`Could not list slates: ${snapshotError.message}`);
+    }
 
     return (data ?? []).map((run) => summarise(run.snapshot as SlateSnapshot));
   }

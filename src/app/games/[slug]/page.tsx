@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { PickRow } from "@/components/PickRow";
 import { Card, SectionHeading, WeatherBadge } from "@/components/ui";
+import { Kickoff } from "@/components/Kickoff";
 import { buildBoardRows, getSlate, slateKeyForProp } from "@/lib/data";
 import { teamLabel } from "@/lib/format";
 import { gameSlug, siteUrl } from "@/lib/seo";
@@ -80,7 +81,8 @@ export default async function GamePage({
           />
         </div>
         <p className="mt-1 text-xs text-[var(--ink-mute)]">
-          {game.season} · Week {game.week} · {game.gameday}
+          {game.season} · Week {game.week} ·{" "}
+          <Kickoff kickoffAt={game.kickoffAt ?? null} gameday={game.gameday} />
           {finished ? ` · FINAL ${game.awayScore}-${game.homeScore}` : ""}
         </p>
         <p className="mt-1 text-[11px] text-[var(--ink-mute)]">

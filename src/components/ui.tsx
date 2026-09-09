@@ -1,7 +1,8 @@
 /** Shared presentational primitives. */
 
 import clsx from "clsx";
-import type { ReactNode } from "react";
+import { CloudRain, CloudSnow, CloudSun, Wind } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 
 import { CountUp } from "./CountUp";
 import { edgeTone, formatSignedPercent } from "@/lib/format";
@@ -100,12 +101,33 @@ export function EdgeBadge({
   );
 }
 
+/** lucide has no dome; a roof arc on a baseline, drawn to its stroke conventions. */
+function DomeIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 17a8 8 0 0 1 16 0" />
+      <path d="M2 17h20" />
+      <path d="M12 9v8" />
+    </svg>
+  );
+}
+
 /**
- * Flags a game where conditions the model actually adjusts for are in play —
- * silent for a clean outdoor game, since there is nothing there worth a
- * bettor's attention. Wind only shows once it crosses the same threshold
- * `efficiency.windThresholdMph` uses to start docking passing efficiency, so
- * the badge and the number it represents can never disagree.
+ * Conditions at kickoff: an icon, the forecast temperature once there is
+ * one, and DOME for indoor venues. Amber only where the model actually
+ * adjusts for it (rain, snow, or wind at or above the same
+ * `efficiency.windThresholdMph` that docks passing efficiency), so the
+ * colour still tracks the numbers; a clean outdoor game stays muted.
  */
 export function WeatherBadge({
   weatherType,
@@ -118,42 +140,56 @@ export function WeatherBadge({
   temperatureF: number | null;
   className?: string;
 }) {
-  const windy =
-    windSpeedMph != null &&
-    windSpeedMph >= DEFAULT_CONFIG.efficiency.windThresholdMph;
+  const threshold = DEFAULT_CONFIG.efficiency.windThresholdMph;
+  const windy = windSpeedMph != null && windSpeedMph >= threshold;
+  const temp = temperatureF != null ? `${Math.round(temperatureF)}°` : null;
+  const wind = windy ? `${Math.round(windSpeedMph)} mph` : null;
 
-  let label: string | null = null;
-  let title = "";
+  let Icon: ComponentType<{ size?: number }>;
+  let label: string;
+  let title: string;
+  let attention = false;
   if (weatherType === "dome") {
+    Icon = DomeIcon;
     label = "DOME";
     title = "Played indoors — wind and precipitation are not a factor.";
   } else if (weatherType === "snow") {
-    label = "SNOW";
+    Icon = CloudSnow;
+    label = temp ?? "SNOW";
     title = "Snow forecast — passing efficiency is modelled down for it.";
+    attention = true;
   } else if (weatherType === "rain") {
-    label = "RAIN";
+    Icon = CloudRain;
+    label = temp ?? "RAIN";
     title = "Rain forecast — passing efficiency is modelled down for it.";
-  } else if (windy) {
-    label = `WIND ${Math.round(windSpeedMph!)}`;
-    title = `${Math.round(windSpeedMph!)} mph forecast wind — passing efficiency is modelled down above ${DEFAULT_CONFIG.efficiency.windThresholdMph} mph.`;
+    attention = true;
+  } else {
+    Icon = windy ? Wind : CloudSun;
+    label = temp ?? "OUTDOORS";
+    title = temp
+      ? `Outdoor venue — ${temp}F forecast at kickoff.`
+      : "Outdoor venue — no kickoff forecast yet.";
+    attention = windy;
   }
-
-  if (!label) return null;
+  if (wind) {
+    title += ` ${wind} wind — passing efficiency is modelled down from ${threshold} mph.`;
+  }
 
   return (
     <span
       className={clsx(
-        "numeric inline-flex items-center rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-bold tracking-wide",
-        weatherType === "dome"
-          ? "bg-[var(--obsidian-3)] text-[var(--ink-dim)]"
-          : "bg-[rgba(255,176,32,0.12)] text-[var(--amber)]",
+        "numeric inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-bold tracking-wide",
+        attention
+          ? "bg-[rgba(255,176,32,0.12)] text-[var(--amber)]"
+          : "bg-[var(--obsidian-3)] text-[var(--ink-dim)]",
         className,
       )}
-      title={
-        temperatureF != null ? `${title} (${Math.round(temperatureF)}°F)` : title
-      }
+      title={title}
+      aria-label={title}
     >
+      <Icon size={12} />
       {label}
+      {wind ? ` · ${wind}` : ""}
     </span>
   );
 }
