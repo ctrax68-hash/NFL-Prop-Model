@@ -33,6 +33,14 @@ jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Secrets cannot be referenced directly in a step's `if:` — GitHub
+      # rejects the whole workflow file as invalid if you try (confirmed the
+      # hard way: every run since this was written failed instantly with
+      # zero jobs, including the legitimate scheduled cron runs, not just
+      # the alerts step). Job-level env is GitHub's own documented
+      # workaround: the secret lands in `env.*` here, which `if:` can read.
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -92,11 +100,10 @@ jobs:
         # alerts yet. Once the secret exists, scripts/send-alerts.ts's own
         # checks take over and fail loudly on any of the other three
         # missing, per its doc comment.
-        if: steps.week.outputs.should_run == 'true' && secrets.RESEND_API_KEY != ''
+        if: steps.week.outputs.should_run == 'true' && env.RESEND_API_KEY != ''
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ALERTS_FROM_EMAIL: ${{ vars.ALERTS_FROM_EMAIL }}
           ALERTS_UNSUBSCRIBE_SECRET: ${{ secrets.ALERTS_UNSUBSCRIBE_SECRET }}
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
