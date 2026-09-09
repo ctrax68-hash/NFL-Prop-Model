@@ -24,6 +24,9 @@ function PickRow({ row }: { row: BoardRow }) {
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-semibold text-[var(--ink)]">
           {row.playerName}
+          <span className="ml-1.5 text-[11px] font-medium text-[var(--ink-mute)]">
+            {row.position}
+          </span>
         </span>
         <span className="eyebrow block text-[var(--ink-mute)]">
           {PROP_SHORT[row.propType]} · {row.opponentLabel}
