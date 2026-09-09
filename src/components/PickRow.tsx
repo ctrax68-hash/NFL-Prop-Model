@@ -17,12 +17,15 @@ export function PickRow({
   row,
   subtitle,
   finished,
+  liveValue,
 }: {
   row: BoardRow;
   /** Defaults to the opponent (Schedule's context); the player page passes the prop name instead. */
   subtitle?: string;
   /** Dims the row rather than hiding it — a settled game is done being bettable but still worth a glance. */
   finished?: boolean;
+  /** This player's live in-game total for this stat, while the game is in progress. Display only — never fed back into the model. */
+  liveValue?: number | null;
 }) {
   const modelProb = row.bestSide === "over" ? row.modelProbOver : row.modelProbUnder;
 
@@ -52,6 +55,13 @@ export function PickRow({
             <span className="font-bold text-[var(--gold)]">
               {" "}
               · {formatUnits(row.recommendedUnits)}
+            </span>
+          ) : null}
+          {liveValue != null ? (
+            <span className="font-bold text-[var(--mint)]">
+              {" "}
+              · <span aria-hidden className="pulse-dot inline-block size-1 rounded-full bg-[var(--mint)]" />{" "}
+              {liveValue} so far
             </span>
           ) : null}
         </span>

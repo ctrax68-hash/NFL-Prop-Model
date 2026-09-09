@@ -21,6 +21,7 @@ import { computeDefenseRates } from "../ingest/defense";
 import { computeTeamRates } from "../ingest/teamRates";
 import { compareSeasonWeek, type SeasonWeek } from "../ingest/asOf";
 import { kickoffInstant } from "../ingest/kickoff";
+import { normaliseName } from "../text";
 import { fitSigmaModels } from "../ingest/varianceModel";
 import { withRefitSigma } from "./sigmaRefit";
 import type { PropsProvider } from "../ingest/props/provider";
@@ -483,6 +484,3 @@ export function buildActuals(
   });
 }
 
-function normaliseName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
-}

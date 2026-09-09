@@ -105,6 +105,14 @@ flips the sign; getting this backwards silently inverts every game-script
 adjustment. And DVOA is proprietary, so EPA-style yards-per-play figures stand in
 for it, named for what they actually are.
 
+The Schedule tab also shows a live score and, for each priced prop, that
+player's running total for the stat once a game has kicked off — polled
+client-side from ESPN's public (unofficial, unauthenticated) site API, joined
+to a prop by team and player name since ESPN carries no gsis_id
+(`src/lib/live/espn.ts`). This is a scoreboard, not a second opinion: it never
+feeds the projection engine, changes a price, or gets persisted anywhere —
+re-projecting a game in progress is a different, unbuilt model.
+
 ---
 
 ## Layout
