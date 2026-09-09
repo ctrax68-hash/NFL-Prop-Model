@@ -5,6 +5,7 @@ import { Aurora } from "@/components/Aurora";
 import { BetSlipProvider } from "@/components/BetSlipProvider";
 import { BetSlip } from "@/components/BetSlip";
 import { Nav } from "@/components/Nav";
+import { SplashScreen } from "@/components/SplashScreen";
 import { TabBar } from "@/components/TabBar";
 import { getCurrentUser } from "@/lib/auth";
 import { listSlates } from "@/lib/data";
@@ -76,6 +77,7 @@ export default async function RootLayout({
         ))}
       </head>
       <body className="min-h-dvh">
+        <SplashScreen />
         <Aurora />
         <BetSlipProvider>
           <Nav slates={slates} user={user} />
