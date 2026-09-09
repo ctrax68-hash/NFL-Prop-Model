@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 
 import { CountUp } from "./CountUp";
 import { edgeTone, formatSignedPercent } from "@/lib/format";
+import { DEFAULT_CONFIG } from "@/lib/engine/config";
+import type { WeatherType } from "@/lib/engine/types";
 
 export function Card({
   children,
@@ -94,6 +96,64 @@ export function EdgeBadge({
       title={`Model edge over the de-vigged fair price: ${formatSignedPercent(edge, 2)}`}
     >
       {formatSignedPercent(edge)}
+    </span>
+  );
+}
+
+/**
+ * Flags a game where conditions the model actually adjusts for are in play —
+ * silent for a clean outdoor game, since there is nothing there worth a
+ * bettor's attention. Wind only shows once it crosses the same threshold
+ * `efficiency.windThresholdMph` uses to start docking passing efficiency, so
+ * the badge and the number it represents can never disagree.
+ */
+export function WeatherBadge({
+  weatherType,
+  windSpeedMph,
+  temperatureF,
+  className,
+}: {
+  weatherType: WeatherType;
+  windSpeedMph: number | null;
+  temperatureF: number | null;
+  className?: string;
+}) {
+  const windy =
+    windSpeedMph != null &&
+    windSpeedMph >= DEFAULT_CONFIG.efficiency.windThresholdMph;
+
+  let label: string | null = null;
+  let title = "";
+  if (weatherType === "dome") {
+    label = "DOME";
+    title = "Played indoors — wind and precipitation are not a factor.";
+  } else if (weatherType === "snow") {
+    label = "SNOW";
+    title = "Snow forecast — passing efficiency is modelled down for it.";
+  } else if (weatherType === "rain") {
+    label = "RAIN";
+    title = "Rain forecast — passing efficiency is modelled down for it.";
+  } else if (windy) {
+    label = `WIND ${Math.round(windSpeedMph!)}`;
+    title = `${Math.round(windSpeedMph!)} mph forecast wind — passing efficiency is modelled down above ${DEFAULT_CONFIG.efficiency.windThresholdMph} mph.`;
+  }
+
+  if (!label) return null;
+
+  return (
+    <span
+      className={clsx(
+        "numeric inline-flex items-center rounded-[var(--radius-pill)] px-2 py-0.5 text-[10px] font-bold tracking-wide",
+        weatherType === "dome"
+          ? "bg-[var(--obsidian-3)] text-[var(--ink-dim)]"
+          : "bg-[rgba(255,176,32,0.12)] text-[var(--amber)]",
+        className,
+      )}
+      title={
+        temperatureF != null ? `${title} (${Math.round(temperatureF)}°F)` : title
+      }
+    >
+      {label}
     </span>
   );
 }

@@ -6,7 +6,7 @@ import clsx from "clsx";
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
 import { teamLabel } from "@/lib/format";
-import { Card } from "./ui";
+import { Card, WeatherBadge } from "./ui";
 import { PickRow } from "./PickRow";
 
 const PREVIEW_COUNT = 5;
@@ -36,19 +36,26 @@ export function ScheduleGameCard({
 
   return (
     <Card className={clsx("p-4", finished && "opacity-55")}>
-      <div className="mb-3 flex items-baseline justify-between">
-        <span className="text-sm font-bold text-[var(--ink)]">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <span className="min-w-0 text-sm font-bold text-[var(--ink)]">
           {teamLabel(game.awayTeam)}{" "}
           <span className="text-[var(--ink-mute)]">@</span>{" "}
           {teamLabel(game.homeTeam)}
         </span>
-        {finished ? (
-          <span className="eyebrow font-bold text-[var(--ink-mute)]">
-            FINAL {game.awayScore}-{game.homeScore}
-          </span>
-        ) : (
-          <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
-        )}
+        <span className="flex shrink-0 items-center gap-1.5">
+          <WeatherBadge
+            weatherType={game.weatherType}
+            windSpeedMph={game.windSpeedMph}
+            temperatureF={game.temperatureF}
+          />
+          {finished ? (
+            <span className="eyebrow font-bold text-[var(--ink-mute)]">
+              FINAL {game.awayScore}-{game.homeScore}
+            </span>
+          ) : (
+            <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
+          )}
+        </span>
       </div>
 
       {preview.length === 0 ? (
