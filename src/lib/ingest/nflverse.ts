@@ -355,3 +355,77 @@ export async function loadSnapCounts(
       offensePct: num(row.offense_pct),
     }));
 }
+
+// ---------------------------------------------------------------------------
+// Depth charts
+// ---------------------------------------------------------------------------
+
+export interface DepthChartRow {
+  /** ISO timestamp of the scrape this snapshot came from. */
+  scrapedAt: string;
+  team: string;
+  playerId: string;
+  position: string;
+  /** 1 = the starter at this position group. */
+  rank: number;
+}
+
+interface RawDepthChart {
+  dt: string;
+  team: string;
+  gsis_id: string;
+  pos_abb: string;
+  pos_rank: string;
+}
+
+/**
+ * ESPN's scraped depth charts, released under nflverse's `depth_charts` tag.
+ * Unlike every other release here, this one is continuously updated — the
+ * file named for a season covers roughly that season's build-up through the
+ * following offseason, and it's the only source in this pipeline that
+ * reflects a roster change (a trade, a released veteran, a camp battle won)
+ * before it shows up in a played game's box score.
+ *
+ * The same player can appear more than once per scrape under different
+ * personnel-package groupings (e.g. base vs. 3-WR sets); this keeps only the
+ * best (lowest) rank per player per scrape, since that is the group that
+ * determines their real role.
+ */
+export async function loadDepthCharts(
+  season: number,
+  options: FetchOptions = {},
+): Promise<DepthChartRow[]> {
+  const text = await fetchCsvText(
+    `${NFLVERSE_RELEASE}/depth_charts/depth_charts_${season}.csv`,
+    options,
+  );
+  const rows = parseCsv<RawDepthChart>(text);
+
+  const best = new Map<string, DepthChartRow>();
+  for (const row of rows) {
+    if (!row.gsis_id || !row.dt || !row.pos_abb) continue;
+    const rank = num(row.pos_rank);
+    if (rank <= 0) continue;
+    const key = `${row.dt}|${row.team}|${row.gsis_id}|${row.pos_abb}`;
+    const existing = best.get(key);
+    if (existing && existing.rank <= rank) continue;
+    best.set(key, {
+      scrapedAt: row.dt,
+      team: row.team,
+      playerId: row.gsis_id,
+      position: row.pos_abb,
+      rank,
+    });
+  }
+  return [...best.values()];
+}
+
+export async function loadDepthChartsForSeasons(
+  seasons: readonly number[],
+  options: FetchOptions = {},
+): Promise<DepthChartRow[]> {
+  const batches = await Promise.all(
+    seasons.map((season) => loadDepthCharts(season, options)),
+  );
+  return batches.flat();
+}

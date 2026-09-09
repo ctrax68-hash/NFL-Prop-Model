@@ -6,6 +6,7 @@
  */
 
 import {
+  loadDepthChartsForSeasons,
   loadGames,
   loadPlayerWeeksForSeasons,
   loadSnapCounts,
@@ -19,6 +20,7 @@ import {
   buildMarginIndex,
   type TeamWeek,
 } from "../ingest/teamRates";
+import { buildDepthChartIndex, type DepthChartIndex } from "../ingest/depthChartIndex";
 
 export interface DataBundle {
   seasons: number[];
@@ -27,6 +29,7 @@ export interface DataBundle {
   snapCounts: SnapCountRow[];
   teamWeeks: TeamWeek[];
   margins: Map<string, number>;
+  depthChart: DepthChartIndex;
 }
 
 /** How many prior seasons of history to load alongside the target season. */
@@ -47,7 +50,7 @@ export async function loadDataBundle(
   seasons: readonly number[],
   options: FetchOptions & { includeSnapCounts?: boolean } = {},
 ): Promise<DataBundle> {
-  const [playerWeeks, games, snapBatches] = await Promise.all([
+  const [playerWeeks, games, snapBatches, depthChartRows] = await Promise.all([
     loadPlayerWeeksForSeasons(seasons, options),
     loadGames(options),
     options.includeSnapCounts === false
@@ -59,6 +62,9 @@ export async function loadDataBundle(
             loadSnapCounts(season, options).catch(() => [] as SnapCountRow[]),
           ),
         ),
+    // Same tolerance as snap counts: depth charts sharpen the projection but
+    // a missing/renamed release should not take the whole run down.
+    loadDepthChartsForSeasons(seasons, options).catch(() => []),
   ]);
 
   const snapCounts = snapBatches.flat();
@@ -71,5 +77,6 @@ export async function loadDataBundle(
     snapCounts,
     teamWeeks,
     margins: buildMarginIndex(games),
+    depthChart: buildDepthChartIndex(depthChartRows, games),
   };
 }

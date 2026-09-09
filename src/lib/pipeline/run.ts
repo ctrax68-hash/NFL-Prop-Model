@@ -72,6 +72,7 @@ export async function runPipeline(
     teamWeeks: bundle.teamWeeks,
     snapCounts: bundle.snapCounts,
     asOf,
+    depthChart: bundle.depthChart,
   });
 
   const activeRecords = filterStale(

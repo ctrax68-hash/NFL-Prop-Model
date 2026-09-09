@@ -65,6 +65,7 @@ async function main(): Promise<void> {
     teamWeeks: bundle.teamWeeks,
     snapCounts: bundle.snapCounts,
     asOf,
+    depthChart: bundle.depthChart,
   });
   console.log("");
   console.log(`Player baselines: ${records.size}`);

@@ -15,6 +15,7 @@ import {
   weightedMean,
   type SeasonWeek,
 } from "./asOf";
+import { depthRankAt, priorKey, rankBucket, type DepthChartIndex } from "./depthChartIndex";
 
 export interface BaselineOptions {
   /** Most recent games per player to consider. */
@@ -204,6 +205,71 @@ export function computePositionPriors(
   return priors;
 }
 
+export interface RankSharePrior {
+  targetShare: number;
+  rushShare: number;
+  passAttemptShare: number;
+}
+
+/**
+ * Usage-share priors bucketed by depth-chart rank (starter / backup / deep
+ * bench) instead of pooling every player at a position together.
+ *
+ * The flat position prior in {@link computePositionPriors} averages a
+ * bell-cow starter and a third-string emergency back into one number, which
+ * drags a freshly-promoted starter's shrunk baseline toward a committee-back
+ * share even once their role has clearly changed. Bucketing by the depth
+ * chart's own rank fixes that at the source: a new RB1 shrinks toward what
+ * RB1s typically get, not toward the position average.
+ */
+export function computeRankSharePriors(
+  playerWeeks: readonly PlayerWeek[],
+  teamTotals: ReadonlyMap<string, TeamTotals>,
+  depthChart: DepthChartIndex,
+): Map<string, RankSharePrior> {
+  const buckets = new Map<
+    string,
+    { targetShares: number[]; rushShares: number[]; passAttemptShares: number[] }
+  >();
+
+  for (const row of playerWeeks) {
+    const position = normalisePosition(row.position);
+    if (!position) continue;
+
+    const rank = depthRankAt(depthChart, row.team, row.playerId, {
+      season: row.season,
+      week: row.week,
+    });
+    if (rank == null) continue;
+
+    const key = priorKey(position, rankBucket(rank));
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { targetShares: [], rushShares: [], passAttemptShares: [] };
+      buckets.set(key, bucket);
+    }
+
+    const totals = teamTotals.get(`${row.season}|${row.week}|${row.team}`);
+    if (!totals) continue;
+    if (totals.targets > 0) bucket.targetShares.push(row.targets / totals.targets);
+    if (totals.carries > 0) bucket.rushShares.push(row.carries / totals.carries);
+    if (totals.passAttempts > 0) {
+      const share = row.attempts / totals.passAttempts;
+      if (share > 0.5) bucket.passAttemptShares.push(share);
+    }
+  }
+
+  const priors = new Map<string, RankSharePrior>();
+  for (const [key, bucket] of buckets) {
+    priors.set(key, {
+      targetShare: arithmeticMean(bucket.targetShares) ?? 0.08,
+      rushShare: arithmeticMean(bucket.rushShares) ?? 0.1,
+      passAttemptShare: arithmeticMean(bucket.passAttemptShares) ?? 0,
+    });
+  }
+  return priors;
+}
+
 const STAT_ACCESSORS: Record<StatType, (row: PlayerWeek) => number> = {
   receiving_yards: (row) => row.receivingYards,
   receptions: (row) => row.receptions,
@@ -220,6 +286,8 @@ export interface BaselineInput {
   snapCounts?: readonly SnapCountRow[];
   asOf: SeasonWeek;
   options?: BaselineOptions;
+  /** Depth-chart rank data; when present, usage-share priors are bucketed by rank. */
+  depthChart?: DepthChartIndex;
 }
 
 export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord> {
@@ -231,6 +299,9 @@ export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord
   );
   const teamTotals = buildTeamTotals(before(input.teamWeeks, asOf));
   const priors = computePositionPriors(history, teamTotals);
+  const rankPriors = input.depthChart
+    ? computeRankSharePriors(history, teamTotals, input.depthChart)
+    : null;
 
   const snapIndex = new Map<string, number>();
   for (const snap of before(input.snapCounts ?? [], asOf)) {
@@ -260,9 +331,24 @@ export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord
     const prior = priors.get(position);
     if (!prior) continue;
 
+    // A depth-chart-conditioned prior anchors a fresh starter's shrunk share
+    // to what starters at their position typically get, instead of the flat
+    // position average (which is dragged down by every backup pooled in).
+    // Falls back to the flat prior when there is no depth-chart signal yet
+    // (e.g. a still-loading current season) or no rank data for this player.
+    const currentRank = input.depthChart
+      ? depthRankAt(input.depthChart, latest.team, playerId, asOf)
+      : null;
+    const sharePrior =
+      (currentRank != null &&
+        rankPriors?.get(priorKey(position, rankBucket(currentRank)))) ||
+      prior;
+
     const weights = decayWeights(recent.length, options.decay);
 
     // --- usage shares -----------------------------------------------------
+    const currentBucket = currentRank != null ? rankBucket(currentRank) : null;
+
     const targetShares: number[] = [];
     const rushShares: number[] = [];
     const passAttemptShares: number[] = [];
@@ -272,6 +358,23 @@ export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord
     recent.forEach((row, index) => {
       const totals = teamTotals.get(`${row.season}|${row.week}|${row.team}`);
       if (!totals) return;
+
+      // A game played at a different depth-chart rank than the player holds
+      // right now reflects a role they no longer have (e.g. Tuten's 2025
+      // rookie season as RB2, before a 2026 promotion to RB1) — pooling it
+      // into "their own observed share" is exactly the stale-history problem
+      // the rank-conditioned prior above exists to correct, so it is excluded
+      // from the observed side too rather than left to outvote the prior.
+      // Unknown rank (no depth-chart coverage for that game) is not treated
+      // as a mismatch — there is no basis to discard it.
+      if (input.depthChart && currentBucket != null) {
+        const rowRank = depthRankAt(input.depthChart, row.team, playerId, {
+          season: row.season,
+          week: row.week,
+        });
+        if (rowRank != null && rankBucket(rowRank) !== currentBucket) return;
+      }
+
       targetShares.push(totals.targets > 0 ? row.targets / totals.targets : 0);
       rushShares.push(totals.carries > 0 ? row.carries / totals.carries : 0);
       passAttemptShares.push(
@@ -324,19 +427,19 @@ export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord
 
       baselineTargetShare: shrink(
         weightedMean(targetShares, shareWeights),
-        prior.targetShare,
+        sharePrior.targetShare,
         observedGames,
         options.shrinkGames,
       ),
       baselineRushShare: shrink(
         weightedMean(rushShares, shareWeights),
-        prior.rushShare,
+        sharePrior.rushShare,
         observedGames,
         options.shrinkGames,
       ),
       baselinePassAttemptShare: shrink(
         weightedMean(passAttemptShares, shareWeights),
-        prior.passAttemptShare,
+        sharePrior.passAttemptShare,
         observedGames,
         options.shrinkGames,
       ),
