@@ -16,6 +16,7 @@
 
 import { ImageResponse } from "next/og";
 import { NextResponse } from "next/server";
+import { helmetDataUri } from "@/lib/brandAsset";
 
 /** Every size actually linked from `layout.tsx`, keep the two in sync. */
 const ALLOWED_SIZES = new Set([
@@ -58,36 +59,8 @@ export async function GET(
           background: "linear-gradient(145deg, #0b1220 0%, #05080f 100%)",
         }}
       >
-        <svg width={markSize} height={markSize} viewBox="0 0 64 64">
-          <defs>
-            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#8fc9ff" />
-              <stop offset="1" stopColor="#2b6fc4" />
-            </linearGradient>
-          </defs>
-          <g transform="rotate(-28 32 32)">
-            <ellipse cx={32} cy={32} rx={24} ry={12.4} fill="url(#g)" />
-            <path
-              d="M11 32 Q32 24 53 32"
-              fill="none"
-              stroke="#0b1220"
-              strokeWidth={1.1}
-              opacity={0.35}
-            />
-            <path
-              d="M11 32 Q32 40 53 32"
-              fill="none"
-              stroke="#0b1220"
-              strokeWidth={1.1}
-              opacity={0.35}
-            />
-            <line x1={25} y1={32} x2={39} y2={32} stroke="#eaf1fb" strokeWidth={2.1} strokeLinecap="round" />
-            <line x1={27.8} y1={28} x2={27.8} y2={36} stroke="#eaf1fb" strokeWidth={1.7} strokeLinecap="round" />
-            <line x1={30.6} y1={28} x2={30.6} y2={36} stroke="#eaf1fb" strokeWidth={1.7} strokeLinecap="round" />
-            <line x1={33.4} y1={28} x2={33.4} y2={36} stroke="#eaf1fb" strokeWidth={1.7} strokeLinecap="round" />
-            <line x1={36.2} y1={28} x2={36.2} y2={36} stroke="#eaf1fb" strokeWidth={1.7} strokeLinecap="round" />
-          </g>
-        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={helmetDataUri()} width={markSize} height={markSize} alt="" />
         <div
           style={{
             display: "flex",

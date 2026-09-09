@@ -7,7 +7,6 @@ import clsx from "clsx";
 
 import { SlatePicker } from "./SlatePicker";
 import { GlobalSearch } from "./GlobalSearch";
-import { FootballMark } from "./FootballMark";
 import { useBetSlip } from "./BetSlipProvider";
 import type { CurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
@@ -95,7 +94,8 @@ export function Nav({
             className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--obsidian-1)]"
             style={{ boxShadow: "var(--glow-gold-sm)" }}
           >
-            <FootballMark size={20} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/helmet-badge.png" width={20} height={20} alt="" className="block" />
           </span>
           <span
             className="text-sm font-black tracking-[0.14em]"
