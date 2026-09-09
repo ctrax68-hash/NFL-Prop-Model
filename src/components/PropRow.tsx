@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { ChevronDown, Star } from "lucide-react";
+import { Bell, ChevronDown, Star } from "lucide-react";
 
 import type { BoardRow, BoardRowBook } from "@/lib/data";
 import type { Side } from "@/lib/engine/types";
@@ -91,6 +91,8 @@ export function PropRow({
   index = 0,
   isWatched = false,
   onToggleWatch,
+  isAlertSubscribed = false,
+  onToggleAlert,
 }: {
   row: BoardRow;
   season: number;
@@ -99,6 +101,9 @@ export function PropRow({
   /** Only present for a signed-in user — logged-out visitors see no star. */
   isWatched?: boolean;
   onToggleWatch?: () => void;
+  /** Only present for a signed-in user — logged-out visitors see no bell. */
+  isAlertSubscribed?: boolean;
+  onToggleAlert?: () => void;
 }) {
   const slip = useBetSlip();
   const [expanded, setExpanded] = useState(false);
@@ -186,6 +191,26 @@ export function PropRow({
         </div>
 
         <div className="relative z-[2] flex shrink-0 items-center gap-1.5">
+          {onToggleAlert ? (
+            <button
+              type="button"
+              onClick={onToggleAlert}
+              aria-pressed={isAlertSubscribed}
+              aria-label={
+                isAlertSubscribed
+                  ? "Turn off email alerts for this prop"
+                  : "Email me when this prop's line moves"
+              }
+              className="tap grid size-9 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--ink-mute)] transition-colors hover:border-[var(--gold)] hover:text-[var(--gold)]"
+            >
+              <Bell
+                size={16}
+                className={
+                  isAlertSubscribed ? "fill-[var(--gold)] text-[var(--gold)]" : undefined
+                }
+              />
+            </button>
+          ) : null}
           {onToggleWatch ? (
             <button
               type="button"

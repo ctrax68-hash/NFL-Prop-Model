@@ -14,7 +14,8 @@
     "pipeline": "tsx scripts/pipeline.ts",
     "backtest": "tsx scripts/backtest.ts",
     "sync:supabase": "tsx scripts/sync-supabase.ts",
-    "current-week": "tsx scripts/current-week.ts"
+    "current-week": "tsx scripts/current-week.ts",
+    "send-alerts": "tsx scripts/send-alerts.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

@@ -8,7 +8,12 @@ import {
   SyntheticWarning,
 } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
-import { buildBoardRows, getSlate, listWatchedProps } from "@/lib/data";
+import {
+  buildBoardRows,
+  getSlate,
+  listAlertSubscriptions,
+  listWatchedProps,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +41,7 @@ export default async function BoardPage({
   const rows = buildBoardRows(snapshot);
   const user = await getCurrentUser();
   const watchedProps = user ? await listWatchedProps(user.id) : [];
+  const alertSubscriptions = user ? await listAlertSubscriptions(user.id) : [];
   const totalUnits = snapshot.recommendations.reduce(
     (sum, bet) => sum + bet.kelly.recommendedUnits,
     0,
@@ -118,6 +124,7 @@ export default async function BoardPage({
           week={snapshot.week}
           user={user}
           watchedProps={watchedProps}
+          alertSubscriptions={alertSubscriptions}
         />
       </div>
 

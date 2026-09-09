@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { BoardRow } from "@/lib/data";
 import type { CurrentUser } from "@/lib/auth";
-import type { WatchedProp } from "@/lib/db/store";
+import type { AlertSubscription, WatchedProp } from "@/lib/db/store";
 import { marketKey, type PropType } from "@/lib/engine/types";
 import { PROP_LABELS } from "@/lib/format";
 import { PropRow } from "./PropRow";
@@ -31,12 +31,14 @@ export function PropBoard({
   week,
   user,
   watchedProps,
+  alertSubscriptions,
 }: {
   rows: BoardRow[];
   season: number;
   week: number;
   user: CurrentUser | null;
   watchedProps: WatchedProp[];
+  alertSubscriptions: AlertSubscription[];
 }) {
   const [propTypes, setPropTypes] = useState<Set<PropType>>(new Set());
   const [positions, setPositions] = useState<Set<string>>(new Set());
@@ -111,6 +113,73 @@ export function PropBoard({
         side: row.bestSide,
         edge: row.bestEdge,
         oddsAmerican,
+      }),
+    });
+  }
+
+  const [alerted, setAlerted] = useState<Map<string, AlertSubscription>>(
+    () =>
+      new Map(
+        alertSubscriptions.map((s) => [
+          marketKey(s.gameId, s.playerId, s.propType),
+          s,
+        ]),
+      ),
+  );
+
+  async function toggleAlert(row: BoardRow) {
+    if (!user) return;
+    const key = marketKey(row.gameId, row.playerId, row.propType);
+
+    if (alerted.has(key)) {
+      setAlerted((prev) => {
+        const next = new Map(prev);
+        next.delete(key);
+        return next;
+      });
+      await fetch("/api/alerts", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          gameId: row.gameId,
+          playerId: row.playerId,
+          propType: row.propType,
+        }),
+      });
+      return;
+    }
+
+    // The subscription's baseline is set server-side on the next alert run
+    // (see scripts/send-alerts.ts) — no captured price/odds to optimistically
+    // fill in here the way a watchlist star does.
+    const optimistic: AlertSubscription = {
+      id: key,
+      userId: user.id,
+      gameId: row.gameId,
+      playerId: row.playerId,
+      propType: row.propType,
+      season,
+      week,
+      playerName: row.playerName,
+      teamId: row.teamId,
+      lastNotifiedLineValue: null,
+      lastNotifiedOddsOver: null,
+      lastNotifiedOddsUnder: null,
+      lastNotifiedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    setAlerted((prev) => new Map(prev).set(key, optimistic));
+    await fetch("/api/alerts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        gameId: row.gameId,
+        playerId: row.playerId,
+        propType: row.propType,
+        season,
+        week,
+        playerName: row.playerName,
+        teamId: row.teamId,
       }),
     });
   }
@@ -273,6 +342,10 @@ export function PropBoard({
               index={index}
               isWatched={watched.has(marketKey(row.gameId, row.playerId, row.propType))}
               onToggleWatch={user ? () => toggleWatch(row) : undefined}
+              isAlertSubscribed={alerted.has(
+                marketKey(row.gameId, row.playerId, row.propType),
+              )}
+              onToggleAlert={user ? () => toggleAlert(row) : undefined}
             />
           ))
         )}

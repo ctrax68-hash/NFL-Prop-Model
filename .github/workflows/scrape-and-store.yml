@@ -77,9 +77,31 @@ jobs:
           ODDS_API_BOOKMAKERS: ${{ vars.ODDS_API_BOOKMAKERS }}
           ODDS_API_REGIONS: ${{ vars.ODDS_API_REGIONS }}
           BANKROLL: ${{ vars.BANKROLL }}
+          NWS_USER_AGENT: ${{ vars.NWS_USER_AGENT }}
         run: |
           npx tsx scripts/pipeline.ts \
             --season ${{ steps.week.outputs.season }} \
             --week ${{ steps.week.outputs.week }} \
             --store supabase \
             --provider odds-api
+
+      - name: Send email alerts for moved lines
+        # Skipped cleanly (not failed) until RESEND_API_KEY is actually
+        # configured — this step is opt-in, and the weekly pipeline run
+        # above it must keep succeeding for repos that haven't set up email
+        # alerts yet. Once the secret exists, scripts/send-alerts.ts's own
+        # checks take over and fail loudly on any of the other three
+        # missing, per its doc comment.
+        if: steps.week.outputs.should_run == 'true' && secrets.RESEND_API_KEY != ''
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERTS_FROM_EMAIL: ${{ vars.ALERTS_FROM_EMAIL }}
+          ALERTS_UNSUBSCRIBE_SECRET: ${{ secrets.ALERTS_UNSUBSCRIBE_SECRET }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          npx tsx scripts/send-alerts.ts \
+            --season ${{ steps.week.outputs.season }} \
+            --week ${{ steps.week.outputs.week }} \
+            --store supabase
