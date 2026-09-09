@@ -17,21 +17,34 @@ export function LoginForm() {
     setStatus("sending");
     setMessage("");
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    // Without a try/catch here, anything that throws instead of returning
+    // `{ error }` — a malformed Supabase URL, a blocked request, a dropped
+    // connection — left the button stuck on "Sending..." forever with no way
+    // to tell the user what happened or let them retry.
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-    if (error) {
+      if (error) {
+        setStatus("error");
+        setMessage(error.message);
+        return;
+      }
+
+      setStatus("sent");
+    } catch (error) {
       setStatus("error");
-      setMessage(error.message);
-      return;
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong sending the sign-in link. Please try again.",
+      );
     }
-
-    setStatus("sent");
   }
 
   if (status === "sent") {
