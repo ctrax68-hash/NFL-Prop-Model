@@ -228,3 +228,83 @@ export function linearFit(
   const intercept = (sumY - slope * sumX) / n;
   return { intercept, slope };
 }
+
+/** `1 / (1 + e^-x)`, mapping any real number onto `(0, 1)`. */
+export function sigmoid(x: number): number {
+  if (x >= 0) {
+    const z = Math.exp(-x);
+    return 1 / (1 + z);
+  }
+  // Mirrors the identity for large negative x, where e^-x would overflow.
+  const z = Math.exp(x);
+  return z / (1 + z);
+}
+
+/**
+ * Logistic regression by gradient descent: fits `logit(P(y=1)) = intercept +
+ * Σ coefficients[i] * x[i]`.
+ *
+ * Features are standardised internally before descending — without it, a
+ * feature on a 0-15 scale (mean receptions) and one on a 0-1 scale (snap
+ * share) converge at wildly different rates and a single learning rate cannot
+ * serve both — then the fitted coefficients are converted back to raw-feature
+ * scale before returning, so callers (and the values stored in `config.ts`)
+ * never need to know standardisation happened at all.
+ */
+export function logisticFit(
+  points: ReadonlyArray<{ x: readonly number[]; y: 0 | 1 }>,
+  options: { iterations?: number; learningRate?: number } = {},
+): { intercept: number; coefficients: number[] } | null {
+  if (points.length < 10) return null;
+  const dims = points[0].x.length;
+  if (dims === 0 || points.some((p) => p.x.length !== dims)) return null;
+
+  const iterations = options.iterations ?? 2000;
+  const learningRate = options.learningRate ?? 0.5;
+
+  const means: number[] = [];
+  const sds: number[] = [];
+  for (let j = 0; j < dims; j += 1) {
+    const column = points.map((p) => p.x[j]);
+    const m = mean(column)!;
+    const sd = stdDev(column) || 1; // a constant column would otherwise divide by zero
+    means.push(m);
+    sds.push(sd);
+  }
+
+  const standardised = points.map((p) => ({
+    z: p.x.map((v, j) => (v - means[j]) / sds[j]),
+    y: p.y,
+  }));
+
+  let b0 = 0;
+  const b = new Array(dims).fill(0);
+  const n = standardised.length;
+
+  for (let iter = 0; iter < iterations; iter += 1) {
+    let gradB0 = 0;
+    const gradB = new Array(dims).fill(0);
+
+    for (const { z, y } of standardised) {
+      let linear = b0;
+      for (let j = 0; j < dims; j += 1) linear += b[j] * z[j];
+      const error = sigmoid(linear) - y;
+      gradB0 += error;
+      for (let j = 0; j < dims; j += 1) gradB[j] += error * z[j];
+    }
+
+    b0 -= (learningRate * gradB0) / n;
+    for (let j = 0; j < dims; j += 1) b[j] -= (learningRate * gradB[j]) / n;
+  }
+
+  // Undo standardisation: logit(p) = b0 + Σ bj(xj-meanj)/sdj
+  //                                = (b0 - Σ bj·meanj/sdj) + Σ (bj/sdj)·xj
+  let intercept = b0;
+  const coefficients = new Array(dims).fill(0);
+  for (let j = 0; j < dims; j += 1) {
+    coefficients[j] = b[j] / sds[j];
+    intercept -= (b[j] * means[j]) / sds[j];
+  }
+
+  return { intercept, coefficients };
+}

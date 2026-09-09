@@ -1,18 +1,28 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import { settleBet } from "@/lib/db/store";
 
 /**
  * Grade every pending bet whose slate has been played.
  *
+ * Scoped to the caller's own bets — this used to grade every pending bet in
+ * the whole store in one call, which was fine with one user and a real bug
+ * the moment a second account exists.
+ *
  * A prop on a player who never took the field settles as "void" rather than a
  * loss, matching how a sportsbook refunds it — see `buildActuals` for why that
  * distinction matters to the model's measured calibration.
  */
 export async function POST() {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to settle bets." }, { status: 401 });
+  }
+
   const store = getStore();
-  const bets = await store.listBets();
+  const bets = await store.listBets(user.id);
   const pending = bets.filter((bet) => bet.status === "pending");
 
   if (pending.length === 0) {

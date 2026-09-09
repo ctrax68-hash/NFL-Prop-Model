@@ -2,16 +2,99 @@
  * Ad-hoc diagnostics for the projection/grading path.
  *
  *   npx tsx scripts/diagnose.ts --season 2024
+ *   npx tsx scripts/diagnose.ts --qb-share --season 2024 --week 10
  */
 
+import {
+  computeBaselines,
+  computePositionPriors,
+  DEFAULT_BASELINE_OPTIONS,
+} from "../src/lib/ingest/baselines";
+import { before } from "../src/lib/ingest/asOf";
 import { withConfig } from "../src/lib/engine/config";
 import { loadDataBundle, seasonsToLoad } from "../src/lib/pipeline/bundle";
 import { runPipeline } from "../src/lib/pipeline/run";
 import { optionalNumber, parseArgs } from "./lib/args";
 
+/**
+ * A2 hypothesis check: does pooling every QB player-week (starters and
+ * mop-up backups alike) into one pass-attempt-share prior drag starters'
+ * shrunk baseline below their own well-established trailing share?
+ *
+ * Compares each QB's raw trailing share (via computeBaselines with
+ * shrinkGames=0, which collapses `shrink()` to the observed value exactly)
+ * against the pooled prior and the actual shrunk baseline the pipeline uses.
+ */
+async function reportQbShare(season: number, week: number): Promise<void> {
+  const bundle = await loadDataBundle(seasonsToLoad([season]));
+  const asOf = { season, week };
+
+  const priors = computePositionPriors(
+    before(bundle.playerWeeks, asOf).filter((r) => r.seasonType === "REG"),
+    (() => {
+      // computeBaselines builds this internally; recomputed here only because
+      // computePositionPriors needs it too and it isn't exported standalone.
+      const totals = new Map<
+        string,
+        { targets: number; carries: number; passAttempts: number }
+      >();
+      for (const w of before(bundle.teamWeeks, asOf)) {
+        totals.set(`${w.season}|${w.week}|${w.team}`, {
+          targets: w.targets,
+          carries: w.carries,
+          passAttempts: w.passAttempts,
+        });
+      }
+      return totals;
+    })(),
+  );
+  const qbPrior = priors.get("QB")?.passAttemptShare ?? 0;
+
+  const shrunk = computeBaselines({
+    playerWeeks: bundle.playerWeeks,
+    teamWeeks: bundle.teamWeeks,
+    snapCounts: bundle.snapCounts,
+    asOf,
+  });
+  const raw = computeBaselines({
+    playerWeeks: bundle.playerWeeks,
+    teamWeeks: bundle.teamWeeks,
+    snapCounts: bundle.snapCounts,
+    asOf,
+    options: { ...DEFAULT_BASELINE_OPTIONS, shrinkGames: 0 },
+  });
+
+  console.log(`QB pass-attempt share as of ${season} week ${week}`);
+  console.log(`  pooled prior (all QB player-weeks): ${qbPrior.toFixed(3)}`);
+  console.log("");
+  console.log(
+    `  ${"name".padEnd(24)} ${"games".padStart(6)} ${"raw".padStart(7)} ${"prior".padStart(7)} ${"shrunk".padStart(7)}`,
+  );
+
+  const rows = [...shrunk.values()]
+    .filter((r) => r.baseline.position === "QB" && r.baseline.gamesSampleN >= 6)
+    .sort((a, b) => b.baseline.baselinePassAttemptShare - a.baseline.baselinePassAttemptShare);
+
+  for (const record of rows) {
+    const rawRecord = raw.get(record.baseline.playerId);
+    const rawShare = rawRecord?.baseline.baselinePassAttemptShare ?? Number.NaN;
+    console.log(
+      `  ${record.baseline.name.padEnd(24)} ${String(record.baseline.gamesSampleN).padStart(6)} ` +
+        `${rawShare.toFixed(3).padStart(7)} ${qbPrior.toFixed(3).padStart(7)} ` +
+        `${record.baseline.baselinePassAttemptShare.toFixed(3).padStart(7)}`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
   const args = parseArgs();
   const season = optionalNumber(args, "season") ?? 2024;
+
+  if (args["qb-share"]) {
+    const week = optionalNumber(args, "week") ?? 10;
+    await reportQbShare(season, week);
+    return;
+  }
 
   const bundle = await loadDataBundle(seasonsToLoad([season]));
 

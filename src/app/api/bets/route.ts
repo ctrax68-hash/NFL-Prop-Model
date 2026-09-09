@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/data";
 import type { PlacedBet } from "@/lib/db/store";
 
@@ -39,6 +40,11 @@ const bodySchema = z.object({
 const UNIT_FRACTION_OF_BANKROLL = 0.01;
 
 export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to place a bet." }, { status: 401 });
+  }
+
   let payload: unknown;
   try {
     payload = await request.json();
@@ -59,6 +65,7 @@ export async function POST(request: Request) {
 
   const bets: PlacedBet[] = legs.map((leg) => ({
     id: randomUUID(),
+    userId: user.id,
     propId: leg.propId,
     season: leg.season,
     week: leg.week,
@@ -88,5 +95,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return NextResponse.json({ bets: await getStore().listBets() });
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in to view your bets." }, { status: 401 });
+  }
+  return NextResponse.json({ bets: await getStore().listBets(user.id) });
 }

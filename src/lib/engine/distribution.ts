@@ -10,8 +10,14 @@ import {
   lowerGammaRegularized,
   normalCdf,
   normalPdf,
+  sigmoid,
 } from "./math";
-import type { EngineConfig, SigmaModel, YardsDistribution } from "./config";
+import type {
+  EngineConfig,
+  HurdleModel,
+  SigmaModel,
+  YardsDistribution,
+} from "./config";
 import {
   isDiscreteStat,
   type ContinuousStatType,
@@ -211,6 +217,12 @@ export interface OverUnderInput {
   sigma: number;
   /** The sportsbook line. */
   line: number;
+  /**
+   * The player's own trailing offensive-snap share, if known. Only consumed
+   * when `config.distribution.hurdle` has a model for this stat; otherwise
+   * ignored, so omitting it never changes behaviour.
+   */
+  snapShare?: number | null;
 }
 
 export interface OverUnderResult {
@@ -238,7 +250,7 @@ export function computeOverUnder(
   const sigma = Math.max(1e-6, input.sigma);
 
   return isDiscreteStat(stat)
-    ? discreteOverUnder(stat, mean, sigma, line, config)
+    ? discreteOverUnder(stat, mean, sigma, line, config, input.snapShare ?? null)
     : continuousOverUnder(stat, mean, sigma, line, config);
 }
 
@@ -328,12 +340,65 @@ function continuousOverUnder(
   };
 }
 
+/**
+ * Zero probability from a hurdle model — `P(X=0)`, in place of whatever the
+ * base count distribution alone implies.
+ */
+/**
+ * Offset inside the hurdle model's `log(mean + offset)` term, shared with the
+ * fitting script so the feature fitted against and the feature evaluated
+ * against can never drift apart.
+ */
+export const HURDLE_MEAN_LOG_OFFSET = 0.1;
+
+export function hurdleZeroProb(
+  model: HurdleModel,
+  mean: number,
+  snapShare: number,
+): number {
+  return sigmoid(
+    model.intercept +
+      model.meanCoef * Math.log(mean + HURDLE_MEAN_LOG_OFFSET) +
+      model.snapShareCoef * snapShare,
+  );
+}
+
+/**
+ * Rescale a base count distribution's cdf/pmf to a hurdle model's `P(X=0)`,
+ * carrying the rest of the shape's mass over zero-truncated. At
+ * `hurdleP0 = basePmf(0)` this is the identity — the strict-generalisation
+ * property the hurdle model is required to have.
+ *
+ * Falls back to the unmodified base distribution if it already puts almost no
+ * mass at zero: the rescaling divides by `1 - basePmf(0)`, and there is
+ * nothing for a hurdle to usefully add when that is already ~1.
+ */
+function applyHurdle(
+  baseCdf: (k: number) => number,
+  basePmf: (k: number) => number,
+  hurdleP0: number,
+): { cdf: (k: number) => number; pmf: (k: number) => number } {
+  const baseP0 = basePmf(0);
+  const survivingMass = 1 - baseP0;
+  if (survivingMass < 1e-9) return { cdf: baseCdf, pmf: basePmf };
+
+  const pmf = (k: number): number =>
+    k === 0 ? hurdleP0 : ((1 - hurdleP0) * basePmf(k)) / survivingMass;
+  const cdf = (k: number): number => {
+    if (k < 0) return 0;
+    if (k === 0) return hurdleP0;
+    return hurdleP0 + ((1 - hurdleP0) * (baseCdf(k) - baseP0)) / survivingMass;
+  };
+  return { cdf, pmf };
+}
+
 function discreteOverUnder(
   stat: StatType,
   mean: number,
   sigma: number,
   line: number,
   config: EngineConfig,
+  snapShare: number | null,
 ): OverUnderResult {
   const variance = sigma * sigma;
   const preference = config.distribution.counts;
@@ -362,6 +427,13 @@ function discreteOverUnder(
     cdf = (k) => poissonCdf(k, mean);
     pmf = (k) => poissonPmf(k, mean);
     distribution = "poisson";
+  }
+
+  const hurdleModel = config.distribution.hurdle[stat];
+  if (hurdleModel != null && snapShare != null) {
+    const hurdleP0 = hurdleZeroProb(hurdleModel, mean, snapShare);
+    ({ cdf, pmf } = applyHurdle(cdf, pmf, hurdleP0));
+    distribution = `${distribution}-hurdle`;
   }
 
   if (Number.isInteger(line)) {
@@ -408,17 +480,32 @@ export function densityCurve(
       mean > 0 &&
       variance / mean >= config.distribution.minVarianceMeanRatio;
 
+    let pmf: (k: number) => number = overdispersed
+      ? (() => {
+          const { r, p } = negBinomialParams(mean, variance);
+          return (k: number) => negBinomialPmf(k, r, p);
+        })()
+      : (k) => poissonPmf(k, mean);
+
+    // Same rescale computeOverUnder applies (inlined here, not via
+    // applyHurdle, since a chart only ever needs the pmf), so the chart can
+    // never disagree with the price beside it.
+    const hurdleModel = config.distribution.hurdle[input.stat];
+    const snapShare = input.snapShare ?? null;
+    if (hurdleModel != null && snapShare != null) {
+      const basePmf = pmf;
+      const baseP0 = basePmf(0);
+      const survivingMass = 1 - baseP0;
+      if (survivingMass >= 1e-9) {
+        const hurdleP0 = hurdleZeroProb(hurdleModel, mean, snapShare);
+        pmf = (k) =>
+          k === 0 ? hurdleP0 : ((1 - hurdleP0) * basePmf(k)) / survivingMass;
+      }
+    }
+
     const maxK = Math.max(6, Math.ceil(mean + 4 * sigma));
     const out: DensityPoint[] = [];
-    for (let k = 0; k <= maxK; k += 1) {
-      const y = overdispersed
-        ? (() => {
-            const { r, p } = negBinomialParams(mean, variance);
-            return negBinomialPmf(k, r, p);
-          })()
-        : poissonPmf(k, mean);
-      out.push({ x: k, y });
-    }
+    for (let k = 0; k <= maxK; k += 1) out.push({ x: k, y: pmf(k) });
     return out;
   }
 

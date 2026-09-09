@@ -1,14 +1,20 @@
+import Link from "next/link";
 import clsx from "clsx";
 
+import { ExampleBetCard } from "@/components/ExampleBetCard";
 import { SettleButton } from "@/components/SettleButton";
 import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
-import { listBets } from "@/lib/data";
-import type { PlacedBet } from "@/lib/db/store";
+import { getCurrentUser } from "@/lib/auth";
+import { getClosingLine, listBets } from "@/lib/data";
+import type { ClosingLine, PlacedBet } from "@/lib/db/store";
+import { DEFAULT_CONFIG } from "@/lib/engine/config";
+import { closingLineValue } from "@/lib/engine/edge";
 import {
   PROP_LABELS,
   formatCurrency,
   formatOdds,
   formatPercent,
+  formatSignedPercent,
   formatSignedUnits,
   formatUnits,
   sideLabel,
@@ -24,7 +30,53 @@ const STATUS_STYLES: Record<PlacedBet["status"], string> = {
   void: "bg-[var(--obsidian-3)] text-[var(--ink-mute)]",
 };
 
-function BetCard({ bet }: { bet: PlacedBet }) {
+/**
+ * closingLineValue() compares same-side odds assuming the line itself hasn't
+ * moved. When it has, that number silently blends line movement into what
+ * should read as pure price movement — so a moved line is flagged instead of
+ * folded into a CLV percentage that would misrepresent what happened.
+ */
+function ClvBadge({ bet, closingLine }: { bet: PlacedBet; closingLine: ClosingLine | null }) {
+  if (!closingLine) return null;
+
+  if (closingLine.lineValue !== bet.lineValue) {
+    return (
+      <span className="text-[10px] text-[var(--ink-mute)]">
+        line moved {bet.lineValue} → {closingLine.lineValue}
+      </span>
+    );
+  }
+
+  const closingOddsSameSide =
+    bet.side === "over" ? closingLine.oddsOverAmerican : closingLine.oddsUnderAmerican;
+  const closingOddsOppositeSide =
+    bet.side === "over" ? closingLine.oddsUnderAmerican : closingLine.oddsOverAmerican;
+  const clv = closingLineValue(
+    bet.oddsAmerican,
+    closingOddsSameSide,
+    closingOddsOppositeSide,
+    DEFAULT_CONFIG,
+  );
+
+  return (
+    <span
+      className={clsx(
+        "numeric text-[10px]",
+        clv > 0 ? "text-[var(--mint)]" : clv < 0 ? "text-[var(--ember)]" : "text-[var(--ink-mute)]",
+      )}
+    >
+      CLV {formatSignedPercent(clv)}
+    </span>
+  );
+}
+
+function BetCard({
+  bet,
+  closingLine,
+}: {
+  bet: PlacedBet;
+  closingLine: ClosingLine | null;
+}) {
   return (
     <div className="flex items-start gap-3 border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
@@ -58,6 +110,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
         >
           {bet.status}
         </span>
+        <ClvBadge bet={bet} closingLine={closingLine} />
         {bet.profitUnits != null ? (
           <span
             className={clsx(
@@ -78,7 +131,31 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 }
 
 export default async function TrackerPage() {
-  const bets = await listBets();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return (
+      <div className="space-y-4">
+        <h1 className="display text-[34px] font-black text-[var(--ink)]">TRACKER</h1>
+        <EmptyState
+          title="Sign in to see your bets"
+          body="Your placed bets and results live in your account. Sign in to view or start logging them."
+        />
+        <Link
+          href="/login"
+          className="tap flex min-h-[44px] w-fit items-center rounded-[var(--radius-pill)] px-4 text-sm font-bold text-[#04101f]"
+          style={{
+            background: "linear-gradient(180deg, var(--gold-bright), var(--gold))",
+            boxShadow: "var(--glow-gold)",
+          }}
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
+  const bets = await listBets(user.id);
 
   if (bets.length === 0) {
     return (
@@ -88,9 +165,27 @@ export default async function TrackerPage() {
           title="No bets logged yet"
           body="Add prices to the bet slip from the board, then log them here to track results, P/L and closing line value."
         />
+        <div>
+          <p className="mb-2 text-[11px] tracking-[0.08em] text-[var(--ink-mute)] uppercase">
+            What a logged bet looks like
+          </p>
+          <ExampleBetCard />
+        </div>
       </div>
     );
   }
+
+  // One lookup per bet rather than per unique week — the tracker realistically
+  // holds a handful of bets, not enough for the N+1 to matter, and batching by
+  // week would only pay off once it does.
+  const closingLines = new Map(
+    await Promise.all(
+      bets.map(
+        async (bet) =>
+          [bet.id, await getClosingLine(bet.propId, bet.season, bet.week)] as const,
+      ),
+    ),
+  );
 
   const pending = bets.filter((bet) => bet.status === "pending");
   const settled = bets.filter((bet) => bet.status !== "pending");
@@ -156,7 +251,7 @@ export default async function TrackerPage() {
           <SectionHeading title="Open bets" />
           <Card className="overflow-hidden">
             {pending.map((bet) => (
-              <BetCard key={bet.id} bet={bet} />
+              <BetCard key={bet.id} bet={bet} closingLine={closingLines.get(bet.id) ?? null} />
             ))}
           </Card>
         </div>
@@ -173,7 +268,11 @@ export default async function TrackerPage() {
               .slice()
               .sort((a, b) => (b.settledAt ?? "").localeCompare(a.settledAt ?? ""))
               .map((bet) => (
-                <BetCard key={bet.id} bet={bet} />
+                <BetCard
+                  key={bet.id}
+                  bet={bet}
+                  closingLine={closingLines.get(bet.id) ?? null}
+                />
               ))}
           </Card>
         </div>

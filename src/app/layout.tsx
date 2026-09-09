@@ -6,6 +6,7 @@ import { BetSlipProvider } from "@/components/BetSlipProvider";
 import { BetSlip } from "@/components/BetSlip";
 import { Nav } from "@/components/Nav";
 import { TabBar } from "@/components/TabBar";
+import { getCurrentUser } from "@/lib/auth";
 import { listSlates } from "@/lib/data";
 
 export const metadata: Metadata = {
@@ -38,14 +39,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const slates = await listSlates();
+  const [slates, user] = await Promise.all([listSlates(), getCurrentUser()]);
 
   return (
     <html lang="en">
       <body className="min-h-dvh">
         <Aurora />
         <BetSlipProvider>
-          <Nav slates={slates} />
+          <Nav slates={slates} user={user} />
           {/* Bottom padding clears the tab bar and the slip bar. */}
           <main className="mx-auto max-w-6xl px-3 pt-3 pb-36 sm:px-4 lg:pb-32">
             {children}

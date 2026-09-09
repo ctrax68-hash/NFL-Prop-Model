@@ -3,10 +3,13 @@
 import { useMemo, useState } from "react";
 
 import type { BoardRow } from "@/lib/data";
-import type { PropType } from "@/lib/engine/types";
+import type { CurrentUser } from "@/lib/auth";
+import type { WatchedProp } from "@/lib/db/store";
+import { marketKey, type PropType } from "@/lib/engine/types";
 import { PROP_LABELS } from "@/lib/format";
 import { PropRow } from "./PropRow";
-import { Card, Pill } from "./ui";
+import { Card, Pill, SectionHeading } from "./ui";
+import { WatchingSection } from "./WatchingSection";
 
 const PROP_ORDER: PropType[] = [
   "receiving_yards",
@@ -26,10 +29,14 @@ export function PropBoard({
   rows,
   season,
   week,
+  user,
+  watchedProps,
 }: {
   rows: BoardRow[];
   season: number;
   week: number;
+  user: CurrentUser | null;
+  watchedProps: WatchedProp[];
 }) {
   const [propTypes, setPropTypes] = useState<Set<PropType>>(new Set());
   const [positions, setPositions] = useState<Set<string>>(new Set());
@@ -38,6 +45,75 @@ export function PropBoard({
   const [minEdge, setMinEdge] = useState(0);
   const [sort, setSort] = useState<SortKey>("edge");
   const [query, setQuery] = useState("");
+
+  const [watched, setWatched] = useState<Map<string, WatchedProp>>(
+    () =>
+      new Map(
+        watchedProps.map((w) => [marketKey(w.gameId, w.playerId, w.propType), w]),
+      ),
+  );
+
+  async function toggleWatch(row: BoardRow) {
+    if (!user) return;
+    const key = marketKey(row.gameId, row.playerId, row.propType);
+
+    if (watched.has(key)) {
+      setWatched((prev) => {
+        const next = new Map(prev);
+        next.delete(key);
+        return next;
+      });
+      await fetch("/api/watchlist", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          gameId: row.gameId,
+          playerId: row.playerId,
+          propType: row.propType,
+        }),
+      });
+      return;
+    }
+
+    // Star always captures whatever the row's live values are right now, so
+    // the optimistic entry needs no server round-trip to be correct.
+    const oddsAmerican =
+      row.bestSide === "over" ? row.oddsOverAmerican : row.oddsUnderAmerican;
+    const optimistic: WatchedProp = {
+      id: key,
+      userId: user.id,
+      gameId: row.gameId,
+      playerId: row.playerId,
+      propType: row.propType,
+      season,
+      week,
+      playerName: row.playerName,
+      teamId: row.teamId,
+      capturedLineValue: row.lineValue,
+      capturedSide: row.bestSide,
+      capturedEdge: row.bestEdge,
+      capturedOddsAmerican: oddsAmerican,
+      createdAt: new Date().toISOString(),
+    };
+    setWatched((prev) => new Map(prev).set(key, optimistic));
+    await fetch("/api/watchlist", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        gameId: row.gameId,
+        playerId: row.playerId,
+        propType: row.propType,
+        season,
+        week,
+        playerName: row.playerName,
+        teamId: row.teamId,
+        lineValue: row.lineValue,
+        side: row.bestSide,
+        edge: row.bestEdge,
+        oddsAmerican,
+      }),
+    });
+  }
 
   const teams = useMemo(
     () => [...new Set(rows.map((row) => row.teamId))].sort(),
@@ -89,6 +165,16 @@ export function PropBoard({
 
   return (
     <div className="space-y-3">
+      {watched.size > 0 ? (
+        <div>
+          <SectionHeading
+            title="Watching"
+            hint="Starred markets from this slate — flagged when the line or edge has moved since you starred it."
+          />
+          <WatchingSection rows={rows} watched={watched} />
+        </div>
+      ) : null}
+
       {/* Filters sit in one row above the board, horizontally scrollable on
           mobile the way a sportsbook's market chips do. */}
       <div className="space-y-2">
@@ -185,6 +271,8 @@ export function PropBoard({
               season={season}
               week={week}
               index={index}
+              isWatched={watched.has(marketKey(row.gameId, row.playerId, row.propType))}
+              onToggleWatch={user ? () => toggleWatch(row) : undefined}
             />
           ))
         )}

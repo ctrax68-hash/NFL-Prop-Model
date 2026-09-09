@@ -107,6 +107,7 @@ function chooseLine(
   bookMean: number,
   sigma: number,
   config: EngineConfig,
+  snapShare: number | null,
 ): { lineValue: number; bookProbOver: number } {
   const step = lineStep(propType);
   const centre = roundLine(propType, bookMean);
@@ -120,8 +121,12 @@ function chooseLine(
     const lineValue = centre + i * step;
     if (lineValue < 0.5) continue;
 
+    // Must match the same hurdle-adjusted distribution the real evaluation
+    // prices against — otherwise the synthetic book posts a line for the
+    // median of a distribution the model no longer actually believes, which
+    // reintroduces a bias by construction rather than measuring one.
     const { probOver } = computeOverUnder(
-      { stat: propType, mean: bookMean, sigma, line: lineValue },
+      { stat: propType, mean: bookMean, sigma, line: lineValue, snapShare },
       config,
     );
 
@@ -189,6 +194,7 @@ export class SyntheticPropsProvider implements PropsProvider {
           Math.max(0, bookEstimate),
           sigma,
           config,
+          baseline.baselineSnapShare ?? null,
         );
 
         // The book prices the line it posted according to its own view, then

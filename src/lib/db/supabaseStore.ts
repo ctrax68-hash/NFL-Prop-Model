@@ -14,9 +14,10 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import type { PropType } from "../engine/types";
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
-import type { PlacedBet, SlateStore } from "./store";
+import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./store";
 
 export function createServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -225,6 +226,42 @@ export class SupabaseSlateStore implements SlateStore {
     return runs[0].snapshot as SlateSnapshot;
   }
 
+  /**
+   * The most recent pipeline run for this prop's week carries the last
+   * odds we captured for it before kickoff — the closest thing to a
+   * closing line this schema tracks. Reads off the same `snapshot` jsonb
+   * as `loadSnapshot` rather than the normalised `props` table, since a
+   * run's props are only ever needed as a whole slate, never queried on
+   * their own.
+   */
+  async getClosingLine(
+    propId: string,
+    season: number,
+    week: number,
+  ): Promise<ClosingLine | null> {
+    const { data: runs, error } = await this.client
+      .from("pipeline_runs")
+      .select("snapshot")
+      .eq("season", season)
+      .eq("week", week)
+      .order("generated_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw new Error(`Could not load closing line: ${error.message}`);
+    if (!runs || runs.length === 0) return null;
+
+    const snapshot = runs[0].snapshot as SlateSnapshot;
+    const prop = snapshot.props.find((p) => p.propId === propId);
+    if (!prop) return null;
+
+    return {
+      propId: prop.propId,
+      lineValue: prop.lineValue,
+      oddsOverAmerican: prop.oddsOverAmerican,
+      oddsUnderAmerican: prop.oddsUnderAmerican,
+    };
+  }
+
   async listSlates(): Promise<SlateSummary[]> {
     const { data, error } = await this.client
       .from("pipeline_runs")
@@ -241,6 +278,7 @@ export class SupabaseSlateStore implements SlateStore {
     const { error } = await this.client.from("bet_results").upsert(
       bets.map((bet) => ({
         id: bet.id,
+        user_id: bet.userId,
         prop_id: bet.propId,
         season: bet.season,
         week: bet.week,
@@ -269,16 +307,18 @@ export class SupabaseSlateStore implements SlateStore {
     if (error) throw new Error(`Could not save bets: ${error.message}`);
   }
 
-  async listBets(): Promise<PlacedBet[]> {
+  async listBets(userId: string): Promise<PlacedBet[]> {
     const { data, error } = await this.client
       .from("bet_results")
       .select("*")
+      .eq("user_id", userId)
       .order("placed_at", { ascending: false });
 
     if (error) throw new Error(`Could not list bets: ${error.message}`);
 
     return (data ?? []).map((row) => ({
       id: row.id as string,
+      userId: row.user_id as string,
       propId: row.prop_id as string,
       season: row.season as number,
       week: row.week as number,
@@ -305,6 +345,78 @@ export class SupabaseSlateStore implements SlateStore {
 
   async updateBets(bets: readonly PlacedBet[]): Promise<void> {
     await this.placeBets(bets);
+  }
+
+  async listWatchedProps(userId: string): Promise<WatchedProp[]> {
+    const { data, error } = await this.client
+      .from("watched_props")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Could not list watched props: ${error.message}`);
+
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      userId: row.user_id as string,
+      gameId: row.game_id as string,
+      playerId: row.player_id as string,
+      propType: row.prop_type as PropType,
+      season: row.season as number,
+      week: row.week as number,
+      playerName: row.player_name as string,
+      teamId: row.team_id as string,
+      capturedLineValue: row.captured_line_value as number,
+      capturedSide: row.captured_side as WatchedProp["capturedSide"],
+      capturedEdge: row.captured_edge as number,
+      capturedOddsAmerican: row.captured_odds_american as number,
+      createdAt: row.created_at as string,
+    }));
+  }
+
+  async upsertWatchedProp(
+    prop: Omit<WatchedProp, "id" | "createdAt">,
+  ): Promise<void> {
+    const { error } = await this.client.from("watched_props").upsert(
+      {
+        user_id: prop.userId,
+        game_id: prop.gameId,
+        player_id: prop.playerId,
+        prop_type: prop.propType,
+        season: prop.season,
+        week: prop.week,
+        player_name: prop.playerName,
+        team_id: prop.teamId,
+        captured_line_value: prop.capturedLineValue,
+        captured_side: prop.capturedSide,
+        captured_edge: prop.capturedEdge,
+        captured_odds_american: prop.capturedOddsAmerican,
+        // Re-starring resets the baseline, so bump created_at too — keeps
+        // this in parity with FileSlateStore, which generates a fresh row
+        // (new id/createdAt) on every star since it has no native upsert.
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,game_id,player_id,prop_type" },
+    );
+
+    if (error) throw new Error(`Could not save watched prop: ${error.message}`);
+  }
+
+  async removeWatchedProp(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("watched_props")
+      .delete()
+      .eq("user_id", userId)
+      .eq("game_id", gameId)
+      .eq("player_id", playerId)
+      .eq("prop_type", propType);
+
+    if (error) throw new Error(`Could not remove watched prop: ${error.message}`);
   }
 }
 

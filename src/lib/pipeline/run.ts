@@ -200,6 +200,7 @@ export async function runPipeline(
           playerSigma: history?.sd ?? null,
           playerMean: history?.mean ?? null,
           playerGames: history?.games ?? 0,
+          snapShare: record?.baseline.baselineSnapShare ?? null,
         },
         config,
       ),

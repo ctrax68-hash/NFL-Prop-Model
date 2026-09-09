@@ -6,13 +6,15 @@
  * weeks against a remote Postgres would be needlessly slow.
  */
 
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import path from "node:path";
 
+import type { PropType } from "../engine/types";
 import { summarise, type SlateSnapshot, type SlateSummary } from "../pipeline/types";
-import type { PlacedBet, SlateStore } from "./store";
+import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./store";
 
 export class FileSlateStore implements SlateStore {
   readonly kind = "file";
@@ -38,6 +40,10 @@ export class FileSlateStore implements SlateStore {
 
   private get betsPath(): string {
     return path.join(this.root, "bets.json");
+  }
+
+  private get watchedPropsPath(): string {
+    return path.join(this.root, "watched-props.json");
   }
 
   private slateStem(season: number, week: number): string {
@@ -93,6 +99,19 @@ export class FileSlateStore implements SlateStore {
     return this.readJson<SlateSnapshot>(this.slatePath(season, week));
   }
 
+  /**
+   * A file store overwrites one JSON file per (season, week) on every run —
+   * there's no format for holding more than one pricing pass. That means it
+   * has no way to tell "the line a bet was placed against" apart from "the
+   * closing line": they're the same single stored copy, so returning it as a
+   * closing line would silently show 0 CLV on every bet rather than an
+   * honest "unavailable." Only a store that actually accumulates a run per
+   * pass (see SupabaseSlateStore) can answer this.
+   */
+  async getClosingLine(): Promise<ClosingLine | null> {
+    return null;
+  }
+
   async listSlates(): Promise<SlateSummary[]> {
     if (!existsSync(this.slateDir)) return [];
 
@@ -124,13 +143,19 @@ export class FileSlateStore implements SlateStore {
   }
 
   async placeBets(bets: readonly PlacedBet[]): Promise<void> {
-    const existing = await this.listBets();
+    const existing = await this.readAllBets();
     const byId = new Map(existing.map((bet) => [bet.id, bet]));
     for (const bet of bets) byId.set(bet.id, bet);
     await this.writeBets([...byId.values()]);
   }
 
-  async listBets(): Promise<PlacedBet[]> {
+  async listBets(userId: string): Promise<PlacedBet[]> {
+    const all = await this.readAllBets();
+    return all.filter((bet) => bet.userId === userId);
+  }
+
+  /** Every bet in the file, unfiltered — merge target for `placeBets`/`updateBets`. */
+  private async readAllBets(): Promise<PlacedBet[]> {
     if (!existsSync(this.betsPath)) return [];
     return JSON.parse(await readFile(this.betsPath, "utf8")) as PlacedBet[];
   }
@@ -142,5 +167,62 @@ export class FileSlateStore implements SlateStore {
   private async writeBets(bets: PlacedBet[]): Promise<void> {
     await mkdir(this.root, { recursive: true });
     await writeFile(this.betsPath, JSON.stringify(bets, null, 2), "utf8");
+  }
+
+  async listWatchedProps(userId: string): Promise<WatchedProp[]> {
+    const all = await this.readAllWatchedProps();
+    return all
+      .filter((w) => w.userId === userId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async upsertWatchedProp(
+    prop: Omit<WatchedProp, "id" | "createdAt">,
+  ): Promise<void> {
+    const all = await this.readAllWatchedProps();
+    const kept = all.filter(
+      (w) =>
+        !(
+          w.userId === prop.userId &&
+          w.gameId === prop.gameId &&
+          w.playerId === prop.playerId &&
+          w.propType === prop.propType
+        ),
+    );
+    kept.push({ ...prop, id: randomUUID(), createdAt: new Date().toISOString() });
+    await this.writeWatchedProps(kept);
+  }
+
+  async removeWatchedProp(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void> {
+    const all = await this.readAllWatchedProps();
+    const kept = all.filter(
+      (w) =>
+        !(
+          w.userId === userId &&
+          w.gameId === gameId &&
+          w.playerId === playerId &&
+          w.propType === propType
+        ),
+    );
+    await this.writeWatchedProps(kept);
+  }
+
+  private async readAllWatchedProps(): Promise<WatchedProp[]> {
+    if (!existsSync(this.watchedPropsPath)) return [];
+    return JSON.parse(await readFile(this.watchedPropsPath, "utf8")) as WatchedProp[];
+  }
+
+  private async writeWatchedProps(props: WatchedProp[]): Promise<void> {
+    await mkdir(this.root, { recursive: true });
+    await writeFile(
+      this.watchedPropsPath,
+      JSON.stringify(props, null, 2),
+      "utf8",
+    );
   }
 }

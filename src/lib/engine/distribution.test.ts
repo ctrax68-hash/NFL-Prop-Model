@@ -14,6 +14,8 @@ import {
   gammaParams,
   gammaCdf,
   gammaPdf,
+  hurdleZeroProb,
+  HURDLE_MEAN_LOG_OFFSET,
 } from "./distribution";
 import { DEFAULT_CONFIG, withConfig } from "./config";
 
@@ -145,6 +147,101 @@ describe("computeOverUnder — gamma yards", () => {
       expect(probOver).toBeLessThanOrEqual(previous + 1e-12);
       previous = probOver;
     }
+  });
+});
+
+describe("hurdle model", () => {
+  const mean = 3;
+  const sigma = 3;
+
+  function withHurdle(intercept: number, meanCoef = 0, snapShareCoef = 0) {
+    return withConfig({
+      distribution: {
+        hurdle: { receptions: { intercept, meanCoef, snapShareCoef } },
+      },
+    });
+  }
+
+  it("hurdleZeroProb matches a hand-computed sigmoid", () => {
+    const logMean = Math.log(4 + HURDLE_MEAN_LOG_OFFSET);
+    const p = hurdleZeroProb(
+      { intercept: 0, meanCoef: 0.5, snapShareCoef: -3 },
+      4,
+      0.6,
+    );
+    expect(p).toBeCloseTo(
+      1 / (1 + Math.exp(-(0.5 * logMean - 3 * 0.6))),
+      12,
+    );
+  });
+
+  it("collapses exactly to the unmodified distribution when hurdleP0 = basePmf(0)", () => {
+    const { r, p } = negBinomialParams(mean, sigma * sigma);
+    const baseP0 = negBinomialPmf(0, r, p);
+    // A constant hurdle (zero coefficients) whose sigmoid reproduces the
+    // base P(0) exactly, regardless of mean/snapShare.
+    const intercept = Math.log(baseP0 / (1 - baseP0));
+    const config = withHurdle(intercept);
+
+    for (const line of [0, 1, 2, 5, 2.5, 6.5]) {
+      const withoutHurdle = computeOverUnder(
+        { stat: "receptions", mean, sigma, line },
+        DEFAULT_CONFIG,
+      );
+      const withHurdleApplied = computeOverUnder(
+        { stat: "receptions", mean, sigma, line, snapShare: 0.5 },
+        config,
+      );
+      expect(withHurdleApplied.probOver).toBeCloseTo(withoutHurdle.probOver, 9);
+      expect(withHurdleApplied.probUnder).toBeCloseTo(withoutHurdle.probUnder, 9);
+      expect(withHurdleApplied.probPush).toBeCloseTo(withoutHurdle.probPush, 9);
+    }
+  });
+
+  it("keeps probabilities summing to one for a real hurdle adjustment", () => {
+    const config = withHurdle(1); // sigmoid(1) ≈ 0.73, well above the base P(0)
+    for (const line of [0, 1, 2, 5, 2.5, 6.5]) {
+      const result = computeOverUnder(
+        { stat: "receptions", mean, sigma, line, snapShare: 0.3 },
+        config,
+      );
+      expect(result.probOver + result.probUnder + result.probPush).toBeCloseTo(
+        1,
+        10,
+      );
+      expect(result.probOver).toBeGreaterThanOrEqual(0);
+      expect(result.probUnder).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("a higher hurdle P(zero) pushes probability toward the under, holding mean/sigma fixed", () => {
+    const low = computeOverUnder(
+      { stat: "receptions", mean, sigma, line: 0.5, snapShare: 0.9 },
+      withHurdle(-2), // sigmoid(-2) ≈ 0.12
+    );
+    const high = computeOverUnder(
+      { stat: "receptions", mean, sigma, line: 0.5, snapShare: 0.1 },
+      withHurdle(2), // sigmoid(2) ≈ 0.88
+    );
+    expect(high.probUnder).toBeGreaterThan(low.probUnder);
+  });
+
+  it("is inert when snapShare is not supplied, even with a hurdle model configured", () => {
+    const config = withHurdle(5); // sigmoid(5) ≈ 0.993 — would be a huge shift if applied
+    const withSnapShare = computeOverUnder(
+      { stat: "receptions", mean, sigma, line: 2, snapShare: 0.5 },
+      config,
+    );
+    const withoutSnapShare = computeOverUnder(
+      { stat: "receptions", mean, sigma, line: 2 },
+      config,
+    );
+    const noHurdleAtAll = computeOverUnder(
+      { stat: "receptions", mean, sigma, line: 2 },
+      DEFAULT_CONFIG,
+    );
+    expect(withoutSnapShare.probOver).toBeCloseTo(noHurdleAtAll.probOver, 12);
+    expect(withSnapShare.probOver).not.toBeCloseTo(noHurdleAtAll.probOver, 3);
   });
 });
 

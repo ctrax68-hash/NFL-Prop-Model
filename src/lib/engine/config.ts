@@ -27,6 +27,13 @@ export interface SigmaModel {
   min: number;
 }
 
+/** Logistic model for `P(X=0)`, in addition to whatever the count family implies. */
+export interface HurdleModel {
+  intercept: number;
+  meanCoef: number;
+  snapShareCoef: number;
+}
+
 export type YardsDistribution = "truncated-normal" | "normal" | "gamma";
 export type CountDistribution = "negative-binomial" | "poisson" | "normal";
 export type DevigMethod = "multiplicative" | "power" | "none";
@@ -155,6 +162,30 @@ export interface EngineConfig {
      * Poisson.
      */
     minVarianceMeanRatio: number;
+    /**
+     * Per-stat hurdle models: `P(X=0) = sigmoid(intercept +
+     * meanCoef*log(mean+0.1) + snapShareCoef*snapShare)`, with the negative
+     * binomial rescaled to a zero-truncated distribution to carry the
+     * remaining mass. Absent for a stat, that stat's zero probability is
+     * whatever the plain negative binomial already implies — this is
+     * additive, not a replacement.
+     *
+     * `log(mean)`, not raw `mean`: fitting on the raw value flipped
+     * `snapShareCoef` positive — mean and snap share are correlated at 0.70 in
+     * the fitting sample, and a linear-in-mean term was different enough from
+     * the true relationship that the optimiser partly routed mean's own
+     * effect through the correlated snap-share term to compensate, in a
+     * direction that does not generalise. The marginal (snap-share-only) fit
+     * was correctly signed throughout; only the joint fit broke, and only
+     * with the linear form. `log(mean+0.1)` fixed it — verified against the
+     * `--zero` diagnostic's own within-bin tercile numbers, not just a
+     * sign check.
+     *
+     * Only present for stats where snap share was measured to add real signal
+     * beyond what projected volume alone explains — see
+     * `scripts/fit-distribution.ts --zero`.
+     */
+    hurdle: Partial<Record<StatType, HurdleModel>>;
   };
 
   odds: {
@@ -277,6 +308,17 @@ export const DEFAULT_CONFIG: EngineConfig = {
       pass_completions: { intercept: 1.8969, slope: 0.2888, min: 3 }, // n=124
     },
     minVarianceMeanRatio: 1.05,
+    // Fitted by `npx tsx scripts/fit-distribution.ts --seasons 2020-2022 --fit-hurdle`,
+    // logistic-regressing P(actual=0) on log(projected volume) and snap share
+    // (see the `hurdle` field comment above for why log, not raw, volume), on
+    // the same out-of-sample split as the sigma refit. In-sample: actual and
+    // mean-predicted zero rate both 25.5% on n=13,747. Only receptions —
+    // rush_attempts's snap-share relationship was materially weaker and
+    // noisier in `--zero`'s own output, and it is already well-calibrated
+    // (+1.1pp bias) without this.
+    hurdle: {
+      receptions: { intercept: -0.3268, meanCoef: -1.4815, snapShareCoef: -0.3889 }, // n=13747
+    },
   },
 
   odds: {

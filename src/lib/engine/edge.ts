@@ -19,6 +19,8 @@ export interface PropEvaluationInput {
   playerMean?: number | null;
   /** Number of games behind the player's own estimate. */
   playerGames: number;
+  /** The player's own trailing offensive-snap share, for the hurdle model. */
+  snapShare?: number | null;
 }
 
 export interface PropEvaluation {
@@ -31,6 +33,13 @@ export interface PropEvaluation {
   projectedValue: number;
   sigma: number;
   distribution: string;
+  /**
+   * Carried through so a persisted snapshot can redraw the density chart with
+   * the same hurdle rescale the price used — `sigma`/`distribution` alone
+   * aren't enough to reconstruct it, since the hurdle model also conditions on
+   * this.
+   */
+  snapShare: number | null;
 
   /** Unconditional model probabilities; these three sum to 1. */
   modelProbOver: number;
@@ -79,6 +88,7 @@ export function evaluateProp(
       mean: input.projectedValue,
       sigma,
       line: prop.lineValue,
+      snapShare: input.snapShare,
     },
     config,
   );
@@ -106,6 +116,7 @@ export function evaluateProp(
     projectedValue: input.projectedValue,
     sigma,
     distribution,
+    snapShare: input.snapShare ?? null,
 
     modelProbOver: probOver,
     modelProbUnder: probUnder,
