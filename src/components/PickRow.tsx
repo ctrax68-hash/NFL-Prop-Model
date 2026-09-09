@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 import type { BoardRow } from "@/lib/data";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
-import { EdgeBadge } from "./ui";
+import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 /**
@@ -36,11 +36,12 @@ export function PickRow({
     >
       <PlayerAvatar url={row.headshotUrl} name={row.playerName} size={32} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold text-[var(--ink)]">
-          {row.playerName}
-          <span className="ml-1.5 text-[11px] font-medium text-[var(--ink-mute)]">
+        <span className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-[var(--ink)]">
+          <span className="truncate">{row.playerName}</span>
+          <span className="shrink-0 text-[11px] font-medium text-[var(--ink-mute)]">
             {row.position}
           </span>
+          <InjuryBadge status={row.injuryStatus} className="shrink-0" />
         </span>
         <span className="eyebrow block text-[var(--ink-mute)]">
           {PROP_SHORT[row.propType]} · {subtitle ?? row.opponentLabel}

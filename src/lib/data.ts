@@ -15,7 +15,7 @@ import type {
   SlateStore,
   WatchedProp,
 } from "./db/store";
-import { marketKey, type PropType } from "./engine/types";
+import { marketKey, type InjuryStatus, type PropType } from "./engine/types";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
 import { readFile } from "node:fs/promises";
@@ -193,6 +193,8 @@ export interface BoardRow extends BoardRowBook {
   propType: SlateSnapshot["props"][number]["propType"];
   projectedValue: number;
   sigma: number;
+  /** This week's official injury designation, if any. */
+  injuryStatus?: InjuryStatus;
   /** Every book quoting this market, best edge first. Length 1 outside a multi-book feed. */
   books: BoardRowBook[];
 }
@@ -288,6 +290,7 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
       propType: entries[0].propType,
       projectedValue: entries[0].projectedValue,
       sigma: entries[0].sigma,
+      injuryStatus: player.injuryStatus,
       books,
     });
   }

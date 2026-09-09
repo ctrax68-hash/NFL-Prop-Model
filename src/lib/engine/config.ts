@@ -248,6 +248,48 @@ export interface EngineConfig {
     /** One unit as a proportion of bankroll. */
     unitFractionOfBankroll: number;
   };
+
+  injury: {
+    /**
+     * Multiplies a Questionable player's usage-share baselines (target,
+     * rush, pass-attempt share) before projection. 1 = no adjustment.
+     *
+     * A player ruled Out is excluded outright (see `run.ts`, next to the
+     * other roster filters) — that is a factual correction, not a
+     * coefficient. This multiplier is different: it is a genuine modelling
+     * choice about how much an ambiguous "probably plays, maybe less" tag
+     * should discount projected volume, and `volume.normaliseTeamShares`'s
+     * own comment above is the standing reminder that a plausible-sounding
+     * roster adjustment can bias projections by double-digit percentages if
+     * it is not actually measured.
+     *
+     * Measured on 2023-24 (a blanket 0.85 questionable / 0.6 doubtful,
+     * applied uniformly across every position and share type): overall mean
+     * calibration error improved (1.20pp -> 1.09pp) and receiving-side bias
+     * shrank (receptions -2.46pp -> -1.91pp, receiving_yards -1.18pp ->
+     * -1.00pp, rushing_yards -2.16pp -> -1.89pp) — but passing-side markets
+     * got measurably worse (pass_attempts +4.18pp -> +4.70pp,
+     * pass_completions +3.79pp -> +4.15pp, rush_attempts +1.11pp ->
+     * +1.46pp). A QB listed Questionable evidently doesn't lose pass-attempt
+     * share the way a banged-up receiver loses target share — most likely
+     * because an ambiguously-injured starting QB either plays his normal
+     * snap count or is replaced outright, not a fractional in-between the
+     * way a receiver's routes-per-game can taper. The same 0.85/0.6 numbers
+     * were also never independently fit and evaluated on a held-out split
+     * the way the sigma models and hurdle coefficients above are — this run
+     * tuned and scored on the same 2023-24 window, so the improvement could
+     * be partly in-sample noise. Net effect positive, but not rigorously
+     * enough established to flip the default — same bar the rushing_yards
+     * hurdle above had to clear before it was gated to QBs only. Left at 1
+     * until a share-type/position-specific fit (mirroring that hurdle's own
+     * QB-only carve-out) is actually done: a two-config `runBacktest`
+     * comparison over the same seasons, diffing `calibrationByPropType` the
+     * way the numbers above were produced.
+     */
+    questionableVolumeMultiplier: number;
+    /** Same idea as `questionableVolumeMultiplier`, for a Doubtful designation. */
+    doubtfulVolumeMultiplier: number;
+  };
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -368,6 +410,14 @@ export const DEFAULT_CONFIG: EngineConfig = {
     maxUnits: 0.5,
     roundToUnits: 0.05,
     unitFractionOfBankroll: 0.01,
+  },
+
+  // DEFAULT OFF (1 = no-op), pending a real backtest comparison — see the
+  // field comments above. Ship a measured value here the same way every
+  // other coefficient in this file arrived, not a plausible-sounding guess.
+  injury: {
+    questionableVolumeMultiplier: 1,
+    doubtfulVolumeMultiplier: 1,
   },
 };
 

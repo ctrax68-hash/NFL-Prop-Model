@@ -8,7 +8,7 @@ import { ChevronDown, Star } from "lucide-react";
 import type { BoardRow, BoardRowBook } from "@/lib/data";
 import type { Side } from "@/lib/engine/types";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
-import { EdgeBadge } from "./ui";
+import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { useBetSlip, type SlipLeg } from "./BetSlipProvider";
 
@@ -146,9 +146,10 @@ export function PropRow({
             // The hit area is padded out to the 44px thumb minimum and pulled
             // back with a matching negative margin, so the row stays visually
             // tight while still being tappable without aiming.
-            className="-my-2.5 flex min-h-[44px] items-center truncate py-2.5 text-[15px] font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+            className="-my-2.5 flex min-h-[44px] items-center gap-1.5 truncate py-2.5 text-[15px] font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
           >
-            {row.playerName}
+            <span className="truncate">{row.playerName}</span>
+            <InjuryBadge status={row.injuryStatus} className="shrink-0" />
           </Link>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <span className="font-medium text-[var(--ink-dim)]">

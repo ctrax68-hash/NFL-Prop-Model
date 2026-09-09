@@ -42,7 +42,7 @@ function Td({ children, right }: { children: ReactNode; right?: boolean }) {
 }
 
 export default function MethodologyPage() {
-  const { distribution, selection, kelly, odds, efficiency } = DEFAULT_CONFIG;
+  const { distribution, selection, kelly, odds, efficiency, injury } = DEFAULT_CONFIG;
   const baselineOptions = DEFAULT_BASELINE_OPTIONS;
 
   return (
@@ -317,6 +317,19 @@ export default function MethodologyPage() {
             baseline history behind it, sized at{" "}
             {(kelly.fraction * 100).toFixed(0)}% of full Kelly and capped at{" "}
             {kelly.maxUnits} units.
+          </li>
+          <li>
+            A player listed <span className="font-semibold text-[var(--ink)]">Out</span>{" "}
+            is excluded from the slate entirely — a factual correction, not a
+            modelled one.{" "}
+            <span className="font-semibold text-[var(--ink)]">Questionable</span>/
+            <span className="font-semibold text-[var(--ink)]">Doubtful</span>{" "}
+            currently apply
+            {injury.questionableVolumeMultiplier === 1 &&
+            injury.doubtfulVolumeMultiplier === 1
+              ? " no volume adjustment: a real backtest comparison found the obvious haircut helped receiving-side markets but measurably hurt passing-side ones, so it stays off until that's fit properly rather than shipped on a plausible-sounding guess"
+              : ` a ${((1 - injury.questionableVolumeMultiplier) * 100).toFixed(0)}%/${((1 - injury.doubtfulVolumeMultiplier) * 100).toFixed(0)}% volume haircut`}
+            .
           </li>
         </ul>
       </Card>

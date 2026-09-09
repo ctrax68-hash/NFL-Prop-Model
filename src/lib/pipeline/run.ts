@@ -73,12 +73,16 @@ export async function runPipeline(
     snapCounts: bundle.snapCounts,
     asOf,
     depthChart: bundle.depthChart,
+    injuries: bundle.injuries,
   });
 
-  const activeRecords = filterStale(
-    playerRecords,
-    asOf,
-    options.staleAfterWeeks ?? DEFAULT_STALE_AFTER_WEEKS,
+  const activeRecords = applyInjuryAdjustments(
+    filterStale(
+      playerRecords,
+      asOf,
+      options.staleAfterWeeks ?? DEFAULT_STALE_AFTER_WEEKS,
+    ),
+    config,
   );
 
   const playersByTeam = new Map<string, PlayerBaseline[]>();
@@ -238,6 +242,7 @@ export async function runPipeline(
       position: record.baseline.position,
       headshotUrl: record.headshotUrl,
       gamesSampleN: record.baseline.gamesSampleN,
+      injuryStatus: record.baseline.injuryStatus,
     });
   }
 
@@ -331,6 +336,49 @@ function filterStale(
   for (const [playerId, record] of records) {
     const gap = weeksBetween(record.lastSeen, asOf);
     if (gap <= staleAfterWeeks) out.set(playerId, record);
+  }
+  return out;
+}
+
+/**
+ * A player ruled Out will not take the field — excluded outright, the same
+ * factual correction `filterStale` makes for someone who has vanished from
+ * the box score. Questionable/Doubtful get a volume haircut instead of an
+ * exclusion, since both are still live possibilities to play; see
+ * `config.injury`'s field comments for why that multiplier defaults to a
+ * no-op until it's actually been backtested.
+ */
+export function applyInjuryAdjustments(
+  records: Map<string, PlayerRecord>,
+  config: EngineConfig,
+): Map<string, PlayerRecord> {
+  const out = new Map<string, PlayerRecord>();
+  for (const [playerId, record] of records) {
+    const status = record.baseline.injuryStatus;
+    if (status === "out") continue;
+
+    const multiplier =
+      status === "questionable"
+        ? config.injury.questionableVolumeMultiplier
+        : status === "doubtful"
+          ? config.injury.doubtfulVolumeMultiplier
+          : 1;
+
+    out.set(
+      playerId,
+      multiplier === 1
+        ? record
+        : {
+            ...record,
+            baseline: {
+              ...record.baseline,
+              baselineTargetShare: record.baseline.baselineTargetShare * multiplier,
+              baselineRushShare: record.baseline.baselineRushShare * multiplier,
+              baselinePassAttemptShare:
+                record.baseline.baselinePassAttemptShare * multiplier,
+            },
+          },
+    );
   }
   return out;
 }

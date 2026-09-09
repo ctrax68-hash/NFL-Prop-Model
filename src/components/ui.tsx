@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { CountUp } from "./CountUp";
 import { edgeTone, formatSignedPercent } from "@/lib/format";
 import { DEFAULT_CONFIG } from "@/lib/engine/config";
-import type { WeatherType } from "@/lib/engine/types";
+import type { InjuryStatus, WeatherType } from "@/lib/engine/types";
 
 export function Card({
   children,
@@ -154,6 +154,44 @@ export function WeatherBadge({
       }
     >
       {label}
+    </span>
+  );
+}
+
+const INJURY_LABEL: Record<InjuryStatus, string> = {
+  questionable: "Q",
+  doubtful: "D",
+  out: "OUT",
+};
+
+const INJURY_TITLE: Record<InjuryStatus, string> = {
+  questionable: "Questionable",
+  doubtful: "Doubtful",
+  out: "Out — excluded from this week's projections",
+};
+
+/** This week's official injury designation, if any — silent when there is none. */
+export function InjuryBadge({
+  status,
+  className,
+}: {
+  status: InjuryStatus | null | undefined;
+  className?: string;
+}) {
+  if (!status) return null;
+
+  return (
+    <span
+      className={clsx(
+        "numeric inline-flex items-center rounded-[var(--radius-pill)] px-1.5 py-0.5 text-[10px] font-black",
+        status === "out"
+          ? "bg-[rgba(255,90,90,0.14)] text-[var(--ember)]"
+          : "bg-[rgba(255,176,32,0.14)] text-[var(--amber)]",
+        className,
+      )}
+      title={INJURY_TITLE[status]}
+    >
+      {INJURY_LABEL[status]}
     </span>
   );
 }

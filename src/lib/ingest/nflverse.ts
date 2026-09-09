@@ -14,7 +14,7 @@ import path from "node:path";
 import Papa from "papaparse";
 
 import { fetchWithTimeout } from "./fetchWithTimeout";
-import type { WeatherType } from "../engine/types";
+import type { InjuryStatus, WeatherType } from "../engine/types";
 
 const NFLVERSE_RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
 /** Schedules with closing spreads, totals and weather live in a separate repo. */
@@ -453,7 +453,8 @@ export async function loadDepthChartsForSeasons(
 // Injury reports
 // ---------------------------------------------------------------------------
 
-export type InjuryReportStatus = "questionable" | "doubtful" | "out";
+/** Alias kept for this file's own readability; identical to the engine's `InjuryStatus`. */
+export type InjuryReportStatus = InjuryStatus;
 
 export interface InjuryReportRow {
   season: number;
