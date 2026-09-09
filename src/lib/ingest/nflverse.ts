@@ -31,6 +31,23 @@ export interface FetchOptions {
   refresh?: boolean;
 }
 
+/**
+ * Thrown by {@link fetchCsvText} so callers can tell "this release asset
+ * doesn't exist" apart from a genuine failure (timeout, 5xx, DNS). That
+ * distinction matters at the start of every season: nflverse doesn't publish
+ * a season's stats file until there is at least one played game to put in
+ * it, so a 404 for the *current, in-progress* season is an expected state,
+ * not a bug — see {@link loadPlayerWeeks}.
+ */
+export class HttpStatusError extends Error {
+  constructor(
+    public readonly status: number,
+    url: string,
+  ) {
+    super(`Failed to fetch ${url}: ${status}`);
+  }
+}
+
 async function fetchCsvText(url: string, options: FetchOptions = {}): Promise<string> {
   await mkdir(CACHE_DIR, { recursive: true });
   const key = createHash("sha1").update(url).digest("hex").slice(0, 16);
@@ -42,12 +59,16 @@ async function fetchCsvText(url: string, options: FetchOptions = {}): Promise<st
 
   const response = await fetchWithTimeout(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new HttpStatusError(response.status, url);
   }
 
   const text = await response.text();
   await writeFile(cachePath, text, "utf8");
   return text;
+}
+
+function isNotFound(error: unknown): boolean {
+  return error instanceof HttpStatusError && error.status === 404;
 }
 
 function parseCsv<T>(text: string): T[] {
@@ -140,11 +161,23 @@ export async function loadPlayerWeeks(
       `${NFLVERSE_RELEASE}/stats_player/stats_player_week_${season}.csv`,
       options,
     );
-  } catch {
-    text = await fetchCsvText(
-      `${NFLVERSE_RELEASE}/player_stats/player_stats_${season}.csv`,
-      options,
-    );
+  } catch (primaryError) {
+    try {
+      text = await fetchCsvText(
+        `${NFLVERSE_RELEASE}/player_stats/player_stats_${season}.csv`,
+        options,
+      );
+    } catch (fallbackError) {
+      // nflverse doesn't publish a season's stats release until it has at
+      // least one played game. A 404 on both names for the season currently
+      // in progress means "no games yet, nothing to load" — not a broken
+      // pipeline — so week 1 can still run off prior-season history alone.
+      // Any other failure (timeout, 5xx, a genuine rename) still throws.
+      if (isNotFound(primaryError) && isNotFound(fallbackError)) {
+        return [];
+      }
+      throw fallbackError;
+    }
   }
 
   const rows = parseCsv<RawPlayerWeek & Record<string, string>>(text);
