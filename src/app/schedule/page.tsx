@@ -1,16 +1,16 @@
-import { DailyGameCard } from "@/components/DailyGameCard";
+import { ScheduleGameCard } from "@/components/ScheduleGameCard";
 import { Card, EmptyState, SyntheticWarning } from "@/components/ui";
 import { buildBoardRows, getSlate } from "@/lib/data";
 import type { BoardRow } from "@/lib/data";
+import type { SlateGame } from "@/lib/pipeline/types";
 
 export const dynamic = "force-dynamic";
 
-/** UTC-midnight "YYYY-MM-DD", matching how `gameday` is stored (date only, no time). */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function isFinished(game: SlateGame): boolean {
+  return game.homeScore != null && game.awayScore != null;
 }
 
-export default async function TodayPage({
+export default async function SchedulePage({
   searchParams,
 }: {
   searchParams: Promise<{ season?: string; week?: string }>;
@@ -24,7 +24,9 @@ export default async function TodayPage({
   if (!snapshot) {
     return (
       <div className="space-y-4">
-        <h1 className="display text-[34px] font-black text-[var(--ink)]">TODAY</h1>
+        <h1 className="display text-[34px] font-black text-[var(--ink)]">
+          SCHEDULE
+        </h1>
         <EmptyState
           title="No slate generated yet"
           body="Run the weekly pipeline to pull nflverse data, project every player on the slate, price the props and size the bets."
@@ -35,10 +37,17 @@ export default async function TodayPage({
   }
 
   const rows = buildBoardRows(snapshot);
-  const today = todayIso();
-  const todaysGames = snapshot.games
-    .filter((game) => game.gameday === today)
-    .sort((a, b) => a.gameId.localeCompare(b.gameId));
+
+  // Games still to be played, soonest first; finished games trail behind them
+  // in the same chronological order rather than dropping off the page.
+  const games = [...snapshot.games].sort((a, b) => {
+    const aFinished = isFinished(a);
+    const bFinished = isFinished(b);
+    if (aFinished !== bFinished) return aFinished ? 1 : -1;
+    return a.gameday === b.gameday
+      ? a.gameId.localeCompare(b.gameId)
+      : a.gameday.localeCompare(b.gameday);
+  });
 
   const rowsByGame = new Map<string, BoardRow[]>();
   for (const row of rows) {
@@ -47,19 +56,22 @@ export default async function TodayPage({
     else rowsByGame.set(row.gameId, [row]);
   }
 
+  const upcomingCount = games.filter((g) => !isFinished(g)).length;
+
   return (
     <div className="space-y-4">
       <header className="pt-1">
         <div className="eyebrow text-[var(--ink-dim)]">
-          {today} · {todaysGames.length} game
-          {todaysGames.length === 1 ? "" : "s"}
+          {snapshot.season} · WK {snapshot.week} · {upcomingCount} of{" "}
+          {games.length} games left
         </div>
-        <h1 className="display mt-1 text-[28px] font-black sm:text-[52px] text-[var(--ink)]">
-          TODAY
+        <h1 className="display mt-1 text-[28px] font-black text-[var(--ink)] sm:text-[52px]">
+          SCHEDULE
         </h1>
         <p className="mt-1 hidden text-xs text-[var(--ink-dim)] sm:block">
-          Just what&apos;s kicking off today — the model&apos;s top picks per
-          game, with everything else a tap away.
+          Every game this week, soonest first — the model&apos;s top picks per
+          game, with everything else a tap away. Final games sink to the
+          bottom.
         </p>
       </header>
 
@@ -67,16 +79,16 @@ export default async function TodayPage({
         <SyntheticWarning provider={snapshot.propsProvider} />
       ) : null}
 
-      {todaysGames.length === 0 ? (
+      {games.length === 0 ? (
         <Card className="p-4">
           <p className="text-sm text-[var(--ink-dim)]">
-            No games kick off today. Check the board for the rest of the
-            week&apos;s slate.
+            No games on this slate.
           </p>
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {todaysGames.map((game) => {
+          {games.map((game) => {
+            const finished = isFinished(game);
             const picks = (rowsByGame.get(game.gameId) ?? [])
               .slice()
               .sort((a, b) => {
@@ -86,7 +98,14 @@ export default async function TodayPage({
                 return b.bestEdge - a.bestEdge;
               });
 
-            return <DailyGameCard key={game.gameId} game={game} picks={picks} />;
+            return (
+              <ScheduleGameCard
+                key={game.gameId}
+                game={game}
+                picks={picks}
+                finished={finished}
+              />
+            );
           })}
         </div>
       )}

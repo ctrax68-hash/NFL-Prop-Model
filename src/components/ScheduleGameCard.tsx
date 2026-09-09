@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import clsx from "clsx";
 
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
@@ -44,14 +45,20 @@ function PickRow({ row }: { row: BoardRow }) {
 /**
  * One game's card: the top {@link PREVIEW_COUNT} picks up front, everything
  * else behind a tap so a slate of forty-plus markets per game doesn't turn
- * "today's games" back into the same wall of noise this page exists to avoid.
+ * the schedule back into the same wall of noise this page exists to avoid.
+ *
+ * A finished game (final score in) renders dimmed with a FINAL badge instead
+ * of dropping off the page — it's done being bettable, but a settled score is
+ * still worth a glance without a trip to the Tracker.
  */
-export function DailyGameCard({
+export function ScheduleGameCard({
   game,
   picks,
+  finished,
 }: {
   game: SlateGame;
   picks: readonly BoardRow[];
+  finished: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -59,14 +66,20 @@ export function DailyGameCard({
   const rest = picks.slice(PREVIEW_COUNT);
 
   return (
-    <Card className="p-4">
+    <Card className={clsx("p-4", finished && "opacity-55")}>
       <div className="mb-3 flex items-baseline justify-between">
         <span className="text-sm font-bold text-[var(--ink)]">
           {teamLabel(game.awayTeam)}{" "}
           <span className="text-[var(--ink-mute)]">@</span>{" "}
           {teamLabel(game.homeTeam)}
         </span>
-        <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
+        {finished ? (
+          <span className="eyebrow font-bold text-[var(--ink-mute)]">
+            FINAL {game.awayScore}-{game.homeScore}
+          </span>
+        ) : (
+          <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
+        )}
       </div>
 
       {preview.length === 0 ? (

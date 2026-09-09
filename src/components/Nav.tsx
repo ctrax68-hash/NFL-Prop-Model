@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { SlateSummary } from "@/lib/pipeline/types";
 
 const LINKS = [
-  { href: "/today", label: "Today" },
+  { href: "/schedule", label: "Schedule" },
   { href: "/", label: "Board" },
   { href: "/parlay", label: "Parlay" },
   { href: "/tracker", label: "Tracker" },

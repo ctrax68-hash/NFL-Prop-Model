@@ -17,8 +17,8 @@ import { useBetSlip } from "./BetSlipProvider";
 
 const TABS = [
   {
-    href: "/today",
-    label: "Today",
+    href: "/schedule",
+    label: "Schedule",
     icon: (
       <>
         <rect x="3" y="5" width="18" height="16" rx="2" />
