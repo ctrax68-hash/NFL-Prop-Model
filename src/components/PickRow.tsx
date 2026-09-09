@@ -9,9 +9,9 @@ import { PlayerAvatar } from "./PlayerAvatar";
 /**
  * One priced market: player, prop, line and edge, tap-to-bet.
  *
- * Shared between the Schedule tab's per-game cards and the Edges leaderboard
- * so the two views can't drift into two different row designs for the same
- * underlying {@link BoardRow}.
+ * Shared between the Schedule tab's per-game cards and the public game and
+ * player pages so the views can't drift into different row designs for the
+ * same underlying {@link BoardRow}.
  */
 export function PickRow({
   row,
@@ -19,7 +19,7 @@ export function PickRow({
   finished,
 }: {
   row: BoardRow;
-  /** Defaults to the opponent (Schedule's context); Edges passes a game/date label instead. */
+  /** Defaults to the opponent (Schedule's context); the player page passes the prop name instead. */
   subtitle?: string;
   /** Dims the row rather than hiding it — a settled game is done being bettable but still worth a glance. */
   finished?: boolean;

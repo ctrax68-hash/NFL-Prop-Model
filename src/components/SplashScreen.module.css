@@ -12,7 +12,20 @@
     ),
     linear-gradient(165deg, var(--obsidian-1) 0%, var(--void) 75%);
   pointer-events: none;
-  animation: dismiss 2.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  transition:
+    opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0s linear 0.45s;
+  /* Failsafe only: if hydration never runs, cut the overlay rather than
+     leave the app hidden. Generous on purpose — it counts from first style,
+     and on a slow connection `load` (which the JS dismissal waits for) can
+     land well after that. Animates visibility alone so it can't interfere
+     with the opacity transition `.done` drives. */
+  animation: failsafe 0s linear 15s forwards;
+}
+
+.done {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .stage {
@@ -117,14 +130,8 @@
   animation: loadFill 1.7s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
 }
 
-@keyframes dismiss {
-  0%,
-  68% {
-    opacity: 1;
-    visibility: visible;
-  }
-  100% {
-    opacity: 0;
+@keyframes failsafe {
+  to {
     visibility: hidden;
   }
 }
@@ -172,7 +179,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .overlay {
-    animation: dismiss 0.6s ease forwards;
+    transition-duration: 0.01s, 0s;
+    transition-delay: 0s, 0.01s;
   }
   .glow,
   .shine::after {
