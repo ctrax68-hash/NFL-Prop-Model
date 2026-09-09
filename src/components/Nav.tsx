@@ -91,14 +91,11 @@ export function Nav({
         <Link href="/" className="tap flex shrink-0 items-center gap-2">
           <span
             aria-hidden
-            className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-[11px] font-black text-[#04101f]"
-            style={{
-              background:
-                "linear-gradient(145deg, var(--gold-bright), var(--bronze))",
-              boxShadow: "var(--glow-gold-sm)",
-            }}
+            className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--obsidian-1)]"
+            style={{ boxShadow: "var(--glow-gold-sm)" }}
           >
-            N
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/helmet-badge.png" width={20} height={20} alt="" className="block" />
           </span>
           <span
             className="text-sm font-black tracking-[0.14em]"
