@@ -48,6 +48,23 @@ export interface ClosingLine {
 }
 
 /**
+ * One pricing pass's price for a market, in chronological order. Reconstructed
+ * from every historical pipeline run for the week rather than a dedicated
+ * history table — each run already inserts (never upserts) its own `props`
+ * rows, so the run history a line-movement chart needs already exists as a
+ * side effect of how the pipeline persists a slate.
+ */
+export interface LineHistoryPoint {
+  capturedAt: string;
+  lineValue: number;
+  oddsOverAmerican: number;
+  oddsUnderAmerican: number;
+  bookName: string;
+  edgeOver: number;
+  edgeUnder: number;
+}
+
+/**
  * One user watching one market (a game/player/prop-type triple, not a
  * specific book's propId — see `marketKey()` in `src/lib/engine/types.ts`).
  * `captured*` fields are whatever was true at star-time, so a later "did
@@ -87,6 +104,21 @@ export interface SlateStore {
     season: number,
     week: number,
   ): Promise<ClosingLine | null>;
+
+  /**
+   * Every historical price for a market (game/player/prop-type — not a bare
+   * propId, since a propId embeds the book and the same market can be quoted
+   * by more than one), oldest first. Only meaningful for a store that keeps a
+   * row per pricing pass; see {@link FileSlateStore} for why it degrades to
+   * at most one point.
+   */
+  getLineHistory(
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+    season: number,
+    week: number,
+  ): Promise<LineHistoryPoint[]>;
 
   placeBets(bets: readonly PlacedBet[]): Promise<void>;
   /** Only this user's own bets — see `supabase/migrations/0004_accounts.sql`. */

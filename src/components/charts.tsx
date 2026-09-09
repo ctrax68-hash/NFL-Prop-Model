@@ -11,6 +11,7 @@
  */
 
 import type { DensityPoint } from "@/lib/engine/distribution";
+import type { LineHistoryPoint } from "@/lib/db/store";
 
 const AXIS = "var(--ink-mute)";
 const GRID = "var(--grid)";
@@ -340,6 +341,113 @@ export function EquityCurve({
           fill={AXIS}
         >
           bets placed (chronological)
+        </text>
+      </svg>
+    </figure>
+  );
+}
+
+/**
+ * A prop's line value across every pricing pass recorded for its week.
+ * Deliberately point-marked at every run rather than just the endpoint —
+ * unlike the equity curve's hundreds of bets, this is typically 2-3 points
+ * (the cron's Monday/Thursday/Sunday cadence), so each one is meaningful on
+ * its own, not just the trend.
+ */
+export function LineMovementChart({
+  points,
+  height = 160,
+}: {
+  points: readonly LineHistoryPoint[];
+  height?: number;
+}) {
+  if (points.length < 2) return null;
+
+  const width = 720;
+  const padding = { top: 16, right: 16, bottom: 24, left: 44 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const xMax = points.length - 1;
+  const values = points.map((p) => p.lineValue);
+  const yMin = Math.min(...values);
+  const yMax = Math.max(...values);
+  // A flat line (no movement at all) would otherwise divide by zero and
+  // collapse every point onto the same pixel.
+  const ySpan = yMax - yMin || 1;
+
+  const sx = (i: number) => padding.left + (i / xMax) * plotWidth;
+  const sy = (y: number) =>
+    padding.top + plotHeight - ((y - yMin) / ySpan) * plotHeight;
+
+  const path = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${sx(i)} ${sy(p.lineValue)}`)
+    .join(" ");
+
+  const ticks = niceTicks(yMin, yMax, 3);
+  const first = points[0];
+  const last = points[points.length - 1];
+  const moved = last.lineValue !== first.lineValue;
+
+  return (
+    <figure className="m-0">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label={`Line moved from ${first.lineValue} to ${last.lineValue} across ${points.length} pricing passes.`}
+      >
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={padding.left}
+              x2={width - padding.right}
+              y1={sy(tick)}
+              y2={sy(tick)}
+              stroke={GRID}
+              strokeWidth={1}
+            />
+            <text
+              x={padding.left - 6}
+              y={sy(tick) + 3}
+              textAnchor="end"
+              fontSize={10}
+              fill={AXIS}
+            >
+              {tick}
+            </text>
+          </g>
+        ))}
+
+        <path
+          d={path}
+          fill="none"
+          stroke={moved ? "var(--gold)" : "var(--ink-mute)"}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {points.map((p, i) => (
+          <circle
+            key={p.capturedAt}
+            cx={sx(i)}
+            cy={sy(p.lineValue)}
+            r={i === points.length - 1 ? 4.5 : 3.5}
+            fill={i === points.length - 1 ? "var(--gold-bright)" : "var(--ink-mute)"}
+            stroke="var(--obsidian-1)"
+            strokeWidth={1.5}
+          />
+        ))}
+
+        <text
+          x={width / 2}
+          y={height - 6}
+          textAnchor="middle"
+          fontSize={10}
+          fill={AXIS}
+        >
+          each pricing pass, chronological
         </text>
       </svg>
     </figure>

@@ -14,7 +14,13 @@ import path from "node:path";
 
 import type { PropType } from "../engine/types";
 import { summarise, type SlateSnapshot, type SlateSummary } from "../pipeline/types";
-import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./store";
+import type {
+  ClosingLine,
+  LineHistoryPoint,
+  PlacedBet,
+  SlateStore,
+  WatchedProp,
+} from "./store";
 
 export class FileSlateStore implements SlateStore {
   readonly kind = "file";
@@ -110,6 +116,13 @@ export class FileSlateStore implements SlateStore {
    */
   async getClosingLine(): Promise<ClosingLine | null> {
     return null;
+  }
+
+  // Same reason as getClosingLine: a file store overwrites one JSON per
+  // season/week on every run, so there is no history of prior runs to
+  // reconstruct — multi-point history is Supabase-only.
+  async getLineHistory(): Promise<LineHistoryPoint[]> {
+    return [];
   }
 
   async listSlates(): Promise<SlateSummary[]> {

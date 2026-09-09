@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { DistributionChart } from "@/components/charts";
+import { DistributionChart, LineMovementChart } from "@/components/charts";
 import { AddToSlip } from "@/components/AddToSlip";
 import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { EdgeMeter } from "@/components/EdgeMeter";
 import { Card, EdgeBadge, SectionHeading, SyntheticWarning } from "@/components/ui";
-import { getSlate, slateKeyForProp } from "@/lib/data";
+import { getLineHistory, getSlate, slateKeyForProp } from "@/lib/data";
 import { densityCurve } from "@/lib/engine/distribution";
 import { isDiscreteStat } from "@/lib/engine/types";
 import {
@@ -64,6 +64,14 @@ export default async function PropDetailPage({
       isQb: evaluation.isQb,
     },
     snapshot.config,
+  );
+
+  const lineHistory = await getLineHistory(
+    evaluation.gameId,
+    evaluation.playerId,
+    evaluation.propType,
+    snapshot.season,
+    snapshot.week,
   );
 
   const logs = snapshot.gameLogs
@@ -342,6 +350,16 @@ export default async function PropDetailPage({
           </dl>
         </Card>
       </div>
+
+      {lineHistory.length >= 2 ? (
+        <Card className="p-4">
+          <SectionHeading
+            title="Line movement"
+            hint={`${lineHistory.length} pricing passes this week, oldest to newest.`}
+          />
+          <LineMovementChart points={lineHistory} />
+        </Card>
+      ) : null}
 
       <Card className="p-4">
         <SectionHeading

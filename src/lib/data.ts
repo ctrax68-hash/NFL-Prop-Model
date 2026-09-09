@@ -8,8 +8,14 @@
 import "server-only";
 
 import { createStore } from "./db/factory";
-import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./db/store";
-import { marketKey } from "./engine/types";
+import type {
+  ClosingLine,
+  LineHistoryPoint,
+  PlacedBet,
+  SlateStore,
+  WatchedProp,
+} from "./db/store";
+import { marketKey, type PropType } from "./engine/types";
 import type { SlateSnapshot, SlateSummary } from "./pipeline/types";
 import type { BacktestResult } from "./backtest";
 import { readFile } from "node:fs/promises";
@@ -95,6 +101,18 @@ export async function getClosingLine(
 ): Promise<ClosingLine | null> {
   return safely("getClosingLine", null, () =>
     getStore().getClosingLine(propId, season, week),
+  );
+}
+
+export async function getLineHistory(
+  gameId: string,
+  playerId: string,
+  propType: PropType,
+  season: number,
+  week: number,
+): Promise<LineHistoryPoint[]> {
+  return safely("getLineHistory", [], () =>
+    getStore().getLineHistory(gameId, playerId, propType, season, week),
   );
 }
 

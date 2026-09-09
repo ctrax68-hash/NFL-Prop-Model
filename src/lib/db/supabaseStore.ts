@@ -17,7 +17,13 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { PropType } from "../engine/types";
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
-import type { ClosingLine, PlacedBet, SlateStore, WatchedProp } from "./store";
+import type {
+  ClosingLine,
+  LineHistoryPoint,
+  PlacedBet,
+  SlateStore,
+  WatchedProp,
+} from "./store";
 
 export function createServiceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -32,6 +38,51 @@ export function createServiceClient(): SupabaseClient {
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+/**
+ * The one history point one snapshot contributes to a market, or null if
+ * that snapshot never priced it. A market can be quoted by more than one
+ * book in the same run; keeps only the best-edge one, the same rule
+ * `buildBoardRows` applies on the board, so a history point matches what was
+ * actually shown that day. Exported standalone (pure, no Supabase client
+ * needed) so the best-book selection can be unit tested against fixture
+ * snapshots without a live database.
+ */
+export function pickLineHistoryPoint(
+  snapshot: SlateSnapshot,
+  gameId: string,
+  playerId: string,
+  propType: PropType,
+): LineHistoryPoint | null {
+  const evaluationByProp = new Map(snapshot.evaluations.map((e) => [e.propId, e]));
+
+  let best: { prop: SlateSnapshot["props"][number]; edge: number } | null = null;
+  for (const prop of snapshot.props) {
+    if (
+      prop.gameId !== gameId ||
+      prop.playerId !== playerId ||
+      prop.propType !== propType
+    ) {
+      continue;
+    }
+    const evaluation = evaluationByProp.get(prop.propId);
+    if (!evaluation) continue;
+    const edge = Math.max(evaluation.edgeOver, evaluation.edgeUnder);
+    if (!best || edge > best.edge) best = { prop, edge };
+  }
+  if (!best) return null;
+
+  const evaluation = evaluationByProp.get(best.prop.propId)!;
+  return {
+    capturedAt: best.prop.timestamp,
+    lineValue: best.prop.lineValue,
+    oddsOverAmerican: best.prop.oddsOverAmerican,
+    oddsUnderAmerican: best.prop.oddsUnderAmerican,
+    bookName: best.prop.bookName,
+    edgeOver: evaluation.edgeOver,
+    edgeUnder: evaluation.edgeUnder,
+  };
 }
 
 /** Chunked insert — Postgres rejects very large single statements. */
@@ -260,6 +311,44 @@ export class SupabaseSlateStore implements SlateStore {
       oddsOverAmerican: prop.oddsOverAmerican,
       oddsUnderAmerican: prop.oddsUnderAmerican,
     };
+  }
+
+  /**
+   * Every historical price for a market, reconstructed from every pipeline
+   * run recorded for the week rather than a dedicated history table — a run
+   * is never overwritten (see `saveSnapshot`'s `pipeline_runs.insert`), so
+   * the week's runs already *are* that market's price history. Reads the
+   * same `snapshot` jsonb `getClosingLine` does, for the same reason: a
+   * run's props are only ever meaningful alongside the run they came from.
+   */
+  async getLineHistory(
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+    season: number,
+    week: number,
+  ): Promise<LineHistoryPoint[]> {
+    const { data: runs, error } = await this.client
+      .from("pipeline_runs")
+      .select("snapshot")
+      .eq("season", season)
+      .eq("week", week)
+      .order("generated_at", { ascending: true });
+
+    if (error) throw new Error(`Could not load line history: ${error.message}`);
+    if (!runs) return [];
+
+    const points: LineHistoryPoint[] = [];
+    for (const run of runs) {
+      const point = pickLineHistoryPoint(
+        run.snapshot as SlateSnapshot,
+        gameId,
+        playerId,
+        propType,
+      );
+      if (point) points.push(point);
+    }
+    return points;
   }
 
   async listSlates(): Promise<SlateSummary[]> {
