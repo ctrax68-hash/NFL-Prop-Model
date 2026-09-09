@@ -8,7 +8,7 @@ import {
 } from "@/components/charts";
 import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
 import { getBacktest } from "@/lib/data";
-import { formatPercent, formatSignedUnits } from "@/lib/format";
+import { formatPercent, formatSignedUnits, PROP_SHORT } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -204,10 +204,7 @@ export default async function BacktestPage() {
           />
           <BucketBars
             buckets={result.byEdgeBucket.filter((bucket) => bucket.bets > 0)}
-            valueOf={(bucket) =>
-              (result.byEdgeBucket.find((b) => b.label === bucket.label)
-                ?.hitRate ?? 0)
-            }
+            valueOf={(bucket) => bucket.hitRate}
             format={(value) => formatPercent(value)}
             label="Hit rate"
           />
@@ -216,11 +213,13 @@ export default async function BacktestPage() {
         <Card className="p-4">
           <SectionHeading title="By prop type" hint="Hit rate across markets." />
           <BucketBars
-            buckets={result.byPropType}
-            valueOf={(bucket) =>
-              result.byPropType.find((b) => b.label === bucket.label)?.hitRate ??
-              0
-            }
+            buckets={result.byPropType.map((bucket) => ({
+              ...bucket,
+              label:
+                PROP_SHORT[bucket.label as keyof typeof PROP_SHORT] ??
+                bucket.label,
+            }))}
+            valueOf={(bucket) => bucket.hitRate}
             format={(value) => formatPercent(value)}
             label="Hit rate"
           />

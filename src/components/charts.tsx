@@ -573,14 +573,14 @@ export function CalibrationChart({
 }
 
 /** Horizontal bars for a single measure across ordered buckets. */
-export function BucketBars({
+export function BucketBars<T extends { label: string; bets: number }>({
   buckets,
   valueOf,
   format,
   label,
 }: {
-  buckets: Array<{ label: string; bets: number }>;
-  valueOf: (bucket: { label: string; bets: number }) => number;
+  buckets: T[];
+  valueOf: (bucket: T) => number;
   format: (value: number) => string;
   label: string;
 }) {
@@ -596,7 +596,10 @@ export function BucketBars({
         const width = (Math.abs(value) / max) * 100;
         return (
           <div key={bucket.label} className="flex items-center gap-3">
-            <span className="numeric w-16 shrink-0 text-[11px] text-[var(--ink-dim)]">
+            <span
+              className="numeric w-20 shrink-0 truncate text-[11px] text-[var(--ink-dim)]"
+              title={bucket.label}
+            >
               {bucket.label}
             </span>
             <div className="relative h-5 flex-1 overflow-hidden rounded-[4px] bg-[var(--obsidian-3)]">
