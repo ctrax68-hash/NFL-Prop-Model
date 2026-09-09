@@ -12,9 +12,10 @@ on:
         required: false
         type: string
   schedule:
-    # Tuesday 14:00 UTC — after Monday Night Football has finished, catches
-    # the opening line for the week.
-    - cron: "0 14 * * 2"
+    # Monday 12:00 PM CT (17:00 UTC during CDT) — catches the week's opening
+    # line. GitHub Actions cron is fixed UTC, so this drifts to 11:00 AM CT
+    # once CDT ends for the season (early November) unless adjusted then.
+    - cron: "0 17 * * 1"
     # Thursday 16:00 UTC — before that night's kickoff, catches Thursday
     # Night Football's own closing line.
     - cron: "0 16 * * 4"
