@@ -66,7 +66,7 @@ No API keys and no database needed — slates are written to `.data/` as JSON.
 |---|---|---|
 | 1. Refresh data | `npm run ingest -- --seasons 2022-2025` | Pulls nflverse, reports league/defensive/baseline inputs, refits the sigma models |
 | 2–5. Project, price, select | `npm run pipeline -- --season 2025 --week 12` | Projects every player, prices every prop, sizes the +EV survivors |
-| 6. Review & bet | the UI | Board → prop detail → bet slip → tracker |
+| 6. Review & bet | the UI | Edges → prop detail → bet slip → tracker |
 | 7. Grade | "Grade open bets" in the tracker | Settles against actual results |
 
 Backtest any span with
@@ -105,7 +105,7 @@ src/lib/ingest/     nflverse loaders, baselines, team/defense rates, props provi
 src/lib/pipeline/   The weekly loop; produces a self-contained SlateSnapshot
 src/lib/backtest/   Historical replay, grading, calibration
 src/lib/db/         Storage behind one interface: file store (default) or Supabase
-src/app/            Board, prop detail, tracker, backtest dashboard
+src/app/            Edges, prop detail, tracker, backtest dashboard
 supabase/migrations Schema + RLS
 scripts/            CLI entry points
 ```

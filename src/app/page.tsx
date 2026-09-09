@@ -20,7 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "NFL Player Prop Board",
+  title: "NFL Player Prop Edges",
   description:
     "Every NFL player prop this week, priced and projected against sportsbook lines with fractional-Kelly bet sizing.",
 };
@@ -123,7 +123,7 @@ export default async function BoardPage({
 
       <div>
         <SectionHeading
-          title="Prop Board"
+          title="Edges"
           hint="Tap a price to add it to the slip. Ringed rows are the model's picks."
         />
         <PropBoard

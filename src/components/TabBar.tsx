@@ -31,14 +31,8 @@ const TABS = [
   },
   {
     href: "/",
-    label: "Board",
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="4" rx="1.5" />
-        <rect x="3" y="10" width="18" height="4" rx="1.5" />
-        <rect x="3" y="16" width="18" height="4" rx="1.5" />
-      </>
-    ),
+    label: "Edges",
+    icon: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />,
   },
   {
     href: "/parlay",

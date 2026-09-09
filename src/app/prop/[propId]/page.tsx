@@ -182,7 +182,7 @@ export default async function PropDetailPage({
         href={`/?season=${snapshot.season}&week=${snapshot.week}`}
         className="-ml-2 inline-flex min-h-[40px] items-center gap-1 px-2 text-xs text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)]"
       >
-        ← Back to board
+        ← Back to edges
       </Link>
 
       {!snapshot.propsAreReal ? (
