@@ -17,17 +17,6 @@ import { useBetSlip } from "./BetSlipProvider";
 
 const TABS = [
   {
-    href: "/",
-    label: "Board",
-    icon: (
-      <>
-        <rect x="3" y="4" width="18" height="4" rx="1.5" />
-        <rect x="3" y="10" width="18" height="4" rx="1.5" />
-        <rect x="3" y="16" width="18" height="4" rx="1.5" />
-      </>
-    ),
-  },
-  {
     href: "/today",
     label: "Today",
     icon: (
@@ -37,6 +26,17 @@ const TABS = [
         <path d="M8 3v4" />
         <path d="M16 3v4" />
         <circle cx="9" cy="15" r="1.6" fill="currentColor" stroke="none" />
+      </>
+    ),
+  },
+  {
+    href: "/",
+    label: "Board",
+    icon: (
+      <>
+        <rect x="3" y="4" width="18" height="4" rx="1.5" />
+        <rect x="3" y="10" width="18" height="4" rx="1.5" />
+        <rect x="3" y="16" width="18" height="4" rx="1.5" />
       </>
     ),
   },
