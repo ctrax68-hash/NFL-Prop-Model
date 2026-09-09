@@ -15,7 +15,6 @@ import type { SlateSummary } from "@/lib/pipeline/types";
 const LINKS = [
   { href: "/schedule", label: "Schedule" },
   { href: "/", label: "Board" },
-  { href: "/edges", label: "Edges" },
   { href: "/parlay", label: "Parlay" },
   { href: "/tracker", label: "Tracker" },
   { href: "/backtest", label: "Backtest" },
@@ -150,7 +149,7 @@ export function Nav({
           </Suspense>
           {/* A trust/transparency page, not a primary destination — a quiet
               text link here rather than a LINKS entry with equal visual
-              weight to Schedule/Board/Edges. */}
+              weight to Schedule/Board. */}
           <Link
             href="/methodology"
             className="hidden shrink-0 text-xs font-medium text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)] lg:inline"

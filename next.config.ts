@@ -18,7 +18,6 @@ const nextConfig: NextConfig = {
     // gap (not just a new-route risk) that predates this entry, caught
     // while adding the two newest routes it was written for.
     "/schedule": ["./data/**"],
-    "/edges": ["./data/**"],
     "/search": ["./data/**"],
     "/api/watchlist": ["./data/**"],
     "/api/alerts": ["./data/**"],

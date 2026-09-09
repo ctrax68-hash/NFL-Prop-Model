@@ -41,11 +41,6 @@ const TABS = [
     ),
   },
   {
-    href: "/edges",
-    label: "Edges",
-    icon: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />,
-  },
-  {
     href: "/parlay",
     label: "Parlay",
     icon: (
@@ -141,7 +136,7 @@ export function TabBar() {
               >
                 {tab.icon}
               </svg>
-              {/* Seven tabs leaves ~45px per column on the smallest phones
+              {/* Six tabs leaves ~53px per column on the smallest phones
                   still in use (320px, iPhone SE 1st-gen) — too narrow for
                   "Backtest" at the old 10px/tracking-wide size without
                   overlapping its neighbour. `truncate` is the backstop for

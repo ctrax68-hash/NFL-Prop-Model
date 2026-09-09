@@ -11,7 +11,7 @@ import { gameSlug, playerSlug, siteUrl } from "@/lib/seo";
 // showed a real Revalidate/Expire entry.
 export const revalidate = 1800;
 
-const STATIC_ROUTES = ["", "/schedule", "/edges", "/methodology", "/backtest"];
+const STATIC_ROUTES = ["", "/schedule", "/methodology", "/backtest"];
 
 /** How many of the most recent weeks' players/games to list — six seasons of
  * every player who ever appeared would make the sitemap enormous for no real
