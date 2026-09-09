@@ -1,5 +1,6 @@
 import { PropBoard } from "@/components/PropBoard";
 import { Ticker } from "@/components/Ticker";
+import { TodaysBestProps } from "@/components/TodaysBestProps";
 import {
   Card,
   EmptyState,
@@ -106,6 +107,8 @@ export default async function BoardPage({
           tone="plain"
         />
       </div>
+
+      <TodaysBestProps games={snapshot.games} rows={rows} />
 
       <div>
         <SectionHeading
