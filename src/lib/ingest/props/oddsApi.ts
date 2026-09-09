@@ -17,6 +17,37 @@ import { fetchWithTimeout } from "../fetchWithTimeout";
 import type { PropLine, PropType } from "../../engine/types";
 import type { PropsProvider, PropsProviderContext } from "./provider";
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * The Odds API bills each event's odds call the moment it succeeds — there is
+ * no way to "undo" that spend. A plain `fetchWithTimeout` that throws on the
+ * first 429 kills the whole pipeline run mid-slate, and every credit already
+ * spent on earlier events in that run is gone; a naive restart then re-fetches
+ * (and re-bills) all of them again. The Odds API's own guidance is to expect
+ * occasional 429s even on paid plans and retry after a couple of seconds, so
+ * this absorbs a rate-limit blip in place instead of forcing an expensive
+ * full restart.
+ */
+async function fetchWithRateLimitRetry(
+  url: string | URL,
+  maxRetries = 4,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetchWithTimeout(url);
+    if (response.status !== 429 || attempt >= maxRetries) return response;
+
+    const retryAfterHeader = response.headers.get("retry-after");
+    const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : NaN;
+    const backoffMs = Number.isFinite(retryAfterMs)
+      ? retryAfterMs
+      : 2_000 * 2 ** attempt;
+    await sleep(backoffMs);
+  }
+}
+
 const API_BASE = "https://api.the-odds-api.com/v4";
 const SPORT_KEY = "americanfootball_nfl";
 
@@ -151,9 +182,15 @@ export class OddsApiPropsProvider implements PropsProvider {
     const props: PropLine[] = [];
 
     // Player props are per-event on this API; there is no slate-wide endpoint.
-    for (const event of events) {
+    // Each successful call bills immediately, so events are fetched one at a
+    // time with a short stagger — bursting them concurrently is what tripped
+    // the frequency limit and killed a run partway through, after it had
+    // already spent credits on the events fetched so far.
+    for (const [index, event] of events.entries()) {
       const gameId = this.matchGame(event);
       if (!gameId) continue;
+
+      if (index > 0) await sleep(250);
 
       const url = new URL(
         `${API_BASE}/sports/${SPORT_KEY}/events/${event.id}/odds`,
@@ -166,7 +203,7 @@ export class OddsApiPropsProvider implements PropsProvider {
         url.searchParams.set("bookmakers", this.options.bookmakers);
       }
 
-      const response = await fetchWithTimeout(url);
+      const response = await fetchWithRateLimitRetry(url);
       if (!response.ok) {
         throw new Error(
           `The Odds API returned ${response.status} for event ${event.id}: ${await response.text()}`,
@@ -185,7 +222,7 @@ export class OddsApiPropsProvider implements PropsProvider {
     const url = new URL(`${API_BASE}/sports/${SPORT_KEY}/events`);
     url.searchParams.set("apiKey", this.options.apiKey);
 
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithRateLimitRetry(url);
     if (!response.ok) {
       throw new Error(
         `The Odds API returned ${response.status} listing events: ${await response.text()}`,
