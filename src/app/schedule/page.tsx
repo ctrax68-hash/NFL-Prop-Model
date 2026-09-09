@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { ScheduleGameCard } from "@/components/ScheduleGameCard";
 import { Card, EmptyState, SyntheticWarning } from "@/components/ui";
 import { buildBoardRows, getSlate } from "@/lib/data";
@@ -5,6 +7,12 @@ import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "NFL Schedule & Player Props This Week",
+  description:
+    "Every NFL game this week with the model's top prop picks per game, weather and injury context included.",
+};
 
 function isFinished(game: SlateGame): boolean {
   return game.homeScore != null && game.awayScore != null;

@@ -6,6 +6,7 @@ import { Suspense, useState } from "react";
 import clsx from "clsx";
 
 import { SlatePicker } from "./SlatePicker";
+import { GlobalSearch } from "./GlobalSearch";
 import { useBetSlip } from "./BetSlipProvider";
 import type { CurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +15,7 @@ import type { SlateSummary } from "@/lib/pipeline/types";
 const LINKS = [
   { href: "/schedule", label: "Schedule" },
   { href: "/", label: "Board" },
+  { href: "/edges", label: "Edges" },
   { href: "/parlay", label: "Parlay" },
   { href: "/tracker", label: "Tracker" },
   { href: "/backtest", label: "Backtest" },
@@ -144,6 +146,20 @@ export function Nav({
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-2">
+          {/* `useSearchParams` needs a boundary so the statically prerendered
+              404 can still build — same reason `SlatePicker` gets one below. */}
+          <Suspense fallback={null}>
+            <GlobalSearch />
+          </Suspense>
+          {/* A trust/transparency page, not a primary destination — a quiet
+              text link here rather than a LINKS entry with equal visual
+              weight to Schedule/Board/Edges. */}
+          <Link
+            href="/methodology"
+            className="hidden shrink-0 text-xs font-medium text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)] lg:inline"
+          >
+            Methodology
+          </Link>
           {/* The picker reads the URL, and `useSearchParams` needs a boundary
               so the statically prerendered 404 can still build. */}
           <Suspense fallback={null}>

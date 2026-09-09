@@ -25,6 +25,9 @@ function game(
     temperatureF: null,
     windSpeedMph: null,
     weatherType: "outdoors",
+    location: "Home",
+    stadiumId: null,
+    gametime: null,
     ...overrides,
   };
 }

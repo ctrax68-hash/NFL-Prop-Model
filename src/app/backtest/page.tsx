@@ -1,3 +1,6 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
 import {
   BucketBars,
   CalibrationChart,
@@ -8,6 +11,12 @@ import { getBacktest } from "@/lib/data";
 import { formatPercent, formatSignedUnits } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "NFL Prop Model Backtest & Calibration",
+  description:
+    "Historical replay of the model's prop recommendations, graded against real NFL results — hit rate, ROI and calibration by edge bucket.",
+};
 
 export default async function BacktestPage() {
   const result = await getBacktest();
@@ -54,6 +63,12 @@ export default async function BacktestPage() {
           {summary.bets.toLocaleString()} bets · {result.voidedProps.toLocaleString()} props
           voided
         </p>
+        <Link
+          href="/methodology"
+          className="mt-1 inline-block text-xs font-medium text-[var(--ink-mute)] underline decoration-dotted transition-colors hover:text-[var(--ink)]"
+        >
+          How the model that produced these numbers actually works →
+        </Link>
       </div>
 
       {/* The most important thing on this page: what these numbers do and do

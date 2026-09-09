@@ -16,6 +16,7 @@ import {
   type SeasonWeek,
 } from "./asOf";
 import { depthRankAt, priorKey, rankBucket, type DepthChartIndex } from "./depthChartIndex";
+import { injuryStatusAt, type InjuryIndex } from "./injuryIndex";
 
 export interface BaselineOptions {
   /** Most recent games per player to consider. */
@@ -288,6 +289,13 @@ export interface BaselineInput {
   options?: BaselineOptions;
   /** Depth-chart rank data; when present, usage-share priors are bucketed by rank. */
   depthChart?: DepthChartIndex;
+  /**
+   * This week's injury reports; when present, each baseline is tagged with
+   * its current designation (display/filtering only — the volume haircut and
+   * hard "out" exclusion live in `run.ts`, next to the other roster
+   * filters, not here).
+   */
+  injuries?: InjuryIndex;
 }
 
 export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord> {
@@ -486,6 +494,10 @@ export function computeBaselines(input: BaselineInput): Map<string, PlayerRecord
         weightedMean(recent.map((r) => r.carries), weights) ?? 0,
 
       gamesSampleN: recent.length,
+      injuryStatus:
+        input.injuries != null
+          ? (injuryStatusAt(input.injuries, latest.team, playerId, asOf) ?? undefined)
+          : undefined,
     };
 
     const statHistory: Partial<Record<StatType, StatHistory>> = {};

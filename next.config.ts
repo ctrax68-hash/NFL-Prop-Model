@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
     "/prop/[propId]": ["./data/**"],
     "/api/bets": ["./data/**"],
     "/api/bets/settle": ["./data/**"],
+    // Every route below also reads the file-store fallback via
+    // `getSlate()`/`listSlates()` and was missing from this list — a real
+    // gap (not just a new-route risk) that predates this entry, caught
+    // while adding the two newest routes it was written for.
+    "/schedule": ["./data/**"],
+    "/edges": ["./data/**"],
+    "/search": ["./data/**"],
+    "/api/watchlist": ["./data/**"],
+    "/api/alerts": ["./data/**"],
+    "/players/[slug]": ["./data/**"],
+    "/games/[slug]": ["./data/**"],
+    "/sitemap": ["./data/**"],
   },
   images: {
     remotePatterns: [

@@ -11,7 +11,13 @@ import type { EngineConfig } from "../engine/config";
 import type { PropEvaluation } from "../engine/edge";
 import type { PlayerGameProjection, TeamProjection } from "../engine/project";
 import type { BetCandidate, RejectedCandidate } from "../engine/selection";
-import type { Position, PropType, PropLine, WeatherType } from "../engine/types";
+import type {
+  InjuryStatus,
+  Position,
+  PropType,
+  PropLine,
+  WeatherType,
+} from "../engine/types";
 
 export interface SlateGame {
   gameId: string;
@@ -38,6 +44,7 @@ export interface SlatePlayer {
   position: Position;
   headshotUrl: string | null;
   gamesSampleN: number;
+  injuryStatus?: InjuryStatus;
 }
 
 /**

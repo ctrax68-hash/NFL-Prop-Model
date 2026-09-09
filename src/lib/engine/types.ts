@@ -25,6 +25,9 @@ export type Side = "over" | "under";
 
 export type WeatherType = "dome" | "outdoors" | "rain" | "snow";
 
+/** A team's official pregame injury designation for a player. */
+export type InjuryStatus = "questionable" | "doubtful" | "out";
+
 /** Stats that are counts (discrete) rather than continuous yardage. */
 export const DISCRETE_STATS: ReadonlySet<StatType> = new Set<StatType>([
   "pass_attempts",
@@ -118,6 +121,8 @@ export interface PlayerBaseline {
   baselineCompletionRate: number;
   /** Number of games backing these baselines — drives shrinkage and filters. */
   gamesSampleN: number;
+  /** This week's official injury designation, if any. Display/filtering only — see `injury` in EngineConfig for how it's used. */
+  injuryStatus?: InjuryStatus;
 }
 
 /** Game context: lines, venue, weather. */

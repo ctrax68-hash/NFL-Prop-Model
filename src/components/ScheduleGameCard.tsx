@@ -6,55 +6,12 @@ import clsx from "clsx";
 
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
-import { PROP_SHORT, formatOdds, formatPercent, formatUnits, teamLabel } from "@/lib/format";
-import { Card, EdgeBadge } from "./ui";
-import { PlayerAvatar } from "./PlayerAvatar";
+import { teamLabel } from "@/lib/format";
+import { gameSlug } from "@/lib/seo";
+import { Card, WeatherBadge } from "./ui";
+import { PickRow } from "./PickRow";
 
 const PREVIEW_COUNT = 5;
-
-function PickRow({ row }: { row: BoardRow }) {
-  const modelProb = row.bestSide === "over" ? row.modelProbOver : row.modelProbUnder;
-
-  return (
-    <Link
-      href={`/prop/${encodeURIComponent(row.propId)}`}
-      className="tap flex min-h-[60px] items-center gap-2.5 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[rgba(32,26,36,0.5)] px-2.5 py-1.5 transition-colors hover:border-[var(--bronze)]"
-    >
-      <PlayerAvatar url={row.headshotUrl} name={row.playerName} size={32} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold text-[var(--ink)]">
-          {row.playerName}
-          <span className="ml-1.5 text-[11px] font-medium text-[var(--ink-mute)]">
-            {row.position}
-          </span>
-        </span>
-        <span className="eyebrow block text-[var(--ink-mute)]">
-          {PROP_SHORT[row.propType]} · {row.opponentLabel}
-        </span>
-        <span className="numeric block text-[11px] text-[var(--ink-dim)]">
-          proj {row.projectedValue.toFixed(1)} · model {formatPercent(modelProb, 0)}
-          {row.isRecommended ? (
-            <span className="font-bold text-[var(--gold)]">
-              {" "}
-              · {formatUnits(row.recommendedUnits)}
-            </span>
-          ) : null}
-        </span>
-      </span>
-      <span className="numeric shrink-0 text-right text-xs text-[var(--ink-dim)]">
-        <span className="block">
-          {row.bestSide === "over" ? "O" : "U"} {row.lineValue}
-        </span>
-        <span className="block">
-          {formatOdds(
-            row.bestSide === "over" ? row.oddsOverAmerican : row.oddsUnderAmerican,
-          )}
-        </span>
-      </span>
-      <EdgeBadge edge={row.bestEdge} className="shrink-0" />
-    </Link>
-  );
-}
 
 /**
  * One game's card: the top {@link PREVIEW_COUNT} picks up front, everything
@@ -81,19 +38,29 @@ export function ScheduleGameCard({
 
   return (
     <Card className={clsx("p-4", finished && "opacity-55")}>
-      <div className="mb-3 flex items-baseline justify-between">
-        <span className="text-sm font-bold text-[var(--ink)]">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <Link
+          href={`/games/${gameSlug(game.gameId)}`}
+          className="min-w-0 text-sm font-bold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+        >
           {teamLabel(game.awayTeam)}{" "}
           <span className="text-[var(--ink-mute)]">@</span>{" "}
           {teamLabel(game.homeTeam)}
+        </Link>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <WeatherBadge
+            weatherType={game.weatherType}
+            windSpeedMph={game.windSpeedMph}
+            temperatureF={game.temperatureF}
+          />
+          {finished ? (
+            <span className="eyebrow font-bold text-[var(--ink-mute)]">
+              FINAL {game.awayScore}-{game.homeScore}
+            </span>
+          ) : (
+            <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
+          )}
         </span>
-        {finished ? (
-          <span className="eyebrow font-bold text-[var(--ink-mute)]">
-            FINAL {game.awayScore}-{game.homeScore}
-          </span>
-        ) : (
-          <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
-        )}
       </div>
 
       {preview.length === 0 ? (

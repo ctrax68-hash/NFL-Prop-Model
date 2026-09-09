@@ -41,6 +41,11 @@ const TABS = [
     ),
   },
   {
+    href: "/edges",
+    label: "Edges",
+    icon: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />,
+  },
+  {
     href: "/parlay",
     label: "Parlay",
     icon: (
@@ -69,6 +74,16 @@ const TABS = [
       <>
         <path d="M3 17l5-6 4 4 6-8" />
         <path d="M14 7h5v5" />
+      </>
+    ),
+  },
+  {
+    href: "/search",
+    label: "Search",
+    icon: (
+      <>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4.3-4.3" />
       </>
     ),
   },
@@ -102,7 +117,7 @@ export function TabBar() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               className={clsx(
-                "tap relative flex flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors",
+                "tap relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors",
                 active ? "text-[var(--gold)]" : "text-[var(--ink-mute)]",
               )}
             >
@@ -126,7 +141,12 @@ export function TabBar() {
               >
                 {tab.icon}
               </svg>
-              <span className="text-[10px] font-semibold tracking-wide">
+              {/* Seven tabs leaves ~45px per column on the smallest phones
+                  still in use (320px, iPhone SE 1st-gen) — too narrow for
+                  "Backtest" at the old 10px/tracking-wide size without
+                  overlapping its neighbour. `truncate` is the backstop for
+                  anything narrower still. */}
+              <span className="w-full truncate text-center text-[9px] font-semibold">
                 {tab.label}
               </span>
             </Link>

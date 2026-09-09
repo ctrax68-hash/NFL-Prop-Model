@@ -88,6 +88,32 @@ export interface WatchedProp {
   createdAt: string;
 }
 
+/**
+ * One user's subscription to email alerts on a market — same market-identity
+ * shape as `WatchedProp` (game/player/prop-type, not a bare propId) and a
+ * distinct table from it: a watch is user-driven and permanent until
+ * unstarred, while an alert's `lastNotified*` fields are written only by the
+ * `scripts/send-alerts.ts` cron and reset every time it actually sends a
+ * notification, not every time the user revisits the page.
+ */
+export interface AlertSubscription {
+  id: string;
+  userId: string;
+  gameId: string;
+  playerId: string;
+  propType: PropType;
+  season: number;
+  week: number;
+  playerName: string;
+  teamId: string;
+  /** Null until the cron has sent a first notification for this subscription. */
+  lastNotifiedLineValue: number | null;
+  lastNotifiedOddsOver: number | null;
+  lastNotifiedOddsUnder: number | null;
+  lastNotifiedAt: string | null;
+  createdAt: string;
+}
+
 export interface SlateStore {
   readonly kind: string;
   saveSnapshot(snapshot: SlateSnapshot): Promise<void>;
@@ -139,6 +165,37 @@ export interface SlateStore {
     gameId: string,
     playerId: string,
     propType: PropType,
+  ): Promise<void>;
+
+  listAlertSubscriptions(userId: string): Promise<AlertSubscription[]>;
+  /**
+   * Subscribe (or re-subscribe) to a market's alerts. Upserts on `(userId,
+   * gameId, playerId, propType)`; the `lastNotified*` fields always start
+   * null on (re)subscribe — same "resets the baseline" semantics as
+   * `upsertWatchedProp`.
+   */
+  upsertAlertSubscription(
+    sub: Omit<
+      AlertSubscription,
+      "id" | "createdAt" | "lastNotifiedLineValue" | "lastNotifiedOddsOver" | "lastNotifiedOddsUnder" | "lastNotifiedAt"
+    >,
+  ): Promise<void>;
+  removeAlertSubscription(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void>;
+  /** Unsubscribe by row id alone — the one-click email link has no session to scope a user-owned delete to. */
+  removeAlertSubscriptionById(id: string): Promise<void>;
+  /** Every subscription on this store, regardless of owner — what the cron scans. */
+  listAllAlertSubscriptions(season: number, week: number): Promise<AlertSubscription[]>;
+  /** Records that a notification was just sent, so the next comparison has a fresh baseline. */
+  markAlertNotified(
+    id: string,
+    lineValue: number,
+    oddsOverAmerican: number,
+    oddsUnderAmerican: number,
   ): Promise<void>;
 }
 

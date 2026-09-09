@@ -15,6 +15,7 @@ import path from "node:path";
 import type { PropType } from "../engine/types";
 import { summarise, type SlateSnapshot, type SlateSummary } from "../pipeline/types";
 import type {
+  AlertSubscription,
   ClosingLine,
   LineHistoryPoint,
   PlacedBet,
@@ -50,6 +51,10 @@ export class FileSlateStore implements SlateStore {
 
   private get watchedPropsPath(): string {
     return path.join(this.root, "watched-props.json");
+  }
+
+  private get alertSubscriptionsPath(): string {
+    return path.join(this.root, "alert-subscriptions.json");
   }
 
   private slateStem(season: number, week: number): string {
@@ -235,6 +240,118 @@ export class FileSlateStore implements SlateStore {
     await writeFile(
       this.watchedPropsPath,
       JSON.stringify(props, null, 2),
+      "utf8",
+    );
+  }
+
+  async listAlertSubscriptions(userId: string): Promise<AlertSubscription[]> {
+    const all = await this.readAllAlertSubscriptions();
+    return all
+      .filter((s) => s.userId === userId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async upsertAlertSubscription(
+    sub: Omit<
+      AlertSubscription,
+      | "id"
+      | "createdAt"
+      | "lastNotifiedLineValue"
+      | "lastNotifiedOddsOver"
+      | "lastNotifiedOddsUnder"
+      | "lastNotifiedAt"
+    >,
+  ): Promise<void> {
+    const all = await this.readAllAlertSubscriptions();
+    const kept = all.filter(
+      (s) =>
+        !(
+          s.userId === sub.userId &&
+          s.gameId === sub.gameId &&
+          s.playerId === sub.playerId &&
+          s.propType === sub.propType
+        ),
+    );
+    kept.push({
+      ...sub,
+      id: randomUUID(),
+      lastNotifiedLineValue: null,
+      lastNotifiedOddsOver: null,
+      lastNotifiedOddsUnder: null,
+      lastNotifiedAt: null,
+      createdAt: new Date().toISOString(),
+    });
+    await this.writeAlertSubscriptions(kept);
+  }
+
+  async removeAlertSubscription(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void> {
+    const all = await this.readAllAlertSubscriptions();
+    const kept = all.filter(
+      (s) =>
+        !(
+          s.userId === userId &&
+          s.gameId === gameId &&
+          s.playerId === playerId &&
+          s.propType === propType
+        ),
+    );
+    await this.writeAlertSubscriptions(kept);
+  }
+
+  async removeAlertSubscriptionById(id: string): Promise<void> {
+    const all = await this.readAllAlertSubscriptions();
+    await this.writeAlertSubscriptions(all.filter((s) => s.id !== id));
+  }
+
+  async listAllAlertSubscriptions(
+    season: number,
+    week: number,
+  ): Promise<AlertSubscription[]> {
+    const all = await this.readAllAlertSubscriptions();
+    return all.filter((s) => s.season === season && s.week === week);
+  }
+
+  async markAlertNotified(
+    id: string,
+    lineValue: number,
+    oddsOverAmerican: number,
+    oddsUnderAmerican: number,
+  ): Promise<void> {
+    const all = await this.readAllAlertSubscriptions();
+    const notifiedAt = new Date().toISOString();
+    const updated = all.map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            lastNotifiedLineValue: lineValue,
+            lastNotifiedOddsOver: oddsOverAmerican,
+            lastNotifiedOddsUnder: oddsUnderAmerican,
+            lastNotifiedAt: notifiedAt,
+          }
+        : s,
+    );
+    await this.writeAlertSubscriptions(updated);
+  }
+
+  private async readAllAlertSubscriptions(): Promise<AlertSubscription[]> {
+    if (!existsSync(this.alertSubscriptionsPath)) return [];
+    return JSON.parse(
+      await readFile(this.alertSubscriptionsPath, "utf8"),
+    ) as AlertSubscription[];
+  }
+
+  private async writeAlertSubscriptions(
+    subs: AlertSubscription[],
+  ): Promise<void> {
+    await mkdir(this.root, { recursive: true });
+    await writeFile(
+      this.alertSubscriptionsPath,
+      JSON.stringify(subs, null, 2),
       "utf8",
     );
   }

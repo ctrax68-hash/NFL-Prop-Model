@@ -3,12 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { ChevronDown, Star } from "lucide-react";
+import { Bell, ChevronDown, Star } from "lucide-react";
 
 import type { BoardRow, BoardRowBook } from "@/lib/data";
 import type { Side } from "@/lib/engine/types";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
-import { EdgeBadge } from "./ui";
+import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { useBetSlip, type SlipLeg } from "./BetSlipProvider";
 
@@ -91,6 +91,8 @@ export function PropRow({
   index = 0,
   isWatched = false,
   onToggleWatch,
+  isAlertSubscribed = false,
+  onToggleAlert,
 }: {
   row: BoardRow;
   season: number;
@@ -99,6 +101,9 @@ export function PropRow({
   /** Only present for a signed-in user — logged-out visitors see no star. */
   isWatched?: boolean;
   onToggleWatch?: () => void;
+  /** Only present for a signed-in user — logged-out visitors see no bell. */
+  isAlertSubscribed?: boolean;
+  onToggleAlert?: () => void;
 }) {
   const slip = useBetSlip();
   const [expanded, setExpanded] = useState(false);
@@ -146,9 +151,10 @@ export function PropRow({
             // The hit area is padded out to the 44px thumb minimum and pulled
             // back with a matching negative margin, so the row stays visually
             // tight while still being tappable without aiming.
-            className="-my-2.5 flex min-h-[44px] items-center truncate py-2.5 text-[15px] font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+            className="-my-2.5 flex min-h-[44px] items-center gap-1.5 truncate py-2.5 text-[15px] font-semibold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
           >
-            {row.playerName}
+            <span className="truncate">{row.playerName}</span>
+            <InjuryBadge status={row.injuryStatus} className="shrink-0" />
           </Link>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <span className="font-medium text-[var(--ink-dim)]">
@@ -185,6 +191,26 @@ export function PropRow({
         </div>
 
         <div className="relative z-[2] flex shrink-0 items-center gap-1.5">
+          {onToggleAlert ? (
+            <button
+              type="button"
+              onClick={onToggleAlert}
+              aria-pressed={isAlertSubscribed}
+              aria-label={
+                isAlertSubscribed
+                  ? "Turn off email alerts for this prop"
+                  : "Email me when this prop's line moves"
+              }
+              className="tap grid size-9 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--ink-mute)] transition-colors hover:border-[var(--gold)] hover:text-[var(--gold)]"
+            >
+              <Bell
+                size={16}
+                className={
+                  isAlertSubscribed ? "fill-[var(--gold)] text-[var(--gold)]" : undefined
+                }
+              />
+            </button>
+          ) : null}
           {onToggleWatch ? (
             <button
               type="button"

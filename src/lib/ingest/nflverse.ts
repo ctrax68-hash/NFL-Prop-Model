@@ -14,7 +14,7 @@ import path from "node:path";
 import Papa from "papaparse";
 
 import { fetchWithTimeout } from "./fetchWithTimeout";
-import type { WeatherType } from "../engine/types";
+import type { InjuryStatus, WeatherType } from "../engine/types";
 
 const NFLVERSE_RELEASE = "https://github.com/nflverse/nflverse-data/releases/download";
 /** Schedules with closing spreads, totals and weather live in a separate repo. */
@@ -250,6 +250,17 @@ export interface GameRow {
   temperatureF: number | null;
   windSpeedMph: number | null;
   weatherType: WeatherType;
+  /** "Home" for a normal game, "Neutral" for a neutral-site/international game. */
+  location: string;
+  /** Joins to a stadium's coordinates — several teams share a venue, team id does not. */
+  stadiumId: string | null;
+  /**
+   * Kickoff time, `HH:MM` in nflverse's own convention (documented as US
+   * Eastern). Needed alongside `gameday` to pick the right hourly forecast
+   * period; a date alone is not precise enough for an early-vs-late game on
+   * the same day.
+   */
+  gametime: string | null;
 }
 
 interface RawGame {
@@ -258,6 +269,7 @@ interface RawGame {
   game_type: string;
   week: string;
   gameday: string;
+  gametime: string;
   away_team: string;
   away_score: string;
   home_team: string;
@@ -267,6 +279,8 @@ interface RawGame {
   roof: string;
   temp: string;
   wind: string;
+  location: string;
+  stadium_id: string;
 }
 
 /** Indoor venues; anything else is treated as exposed to the weather. */
@@ -305,6 +319,11 @@ export async function loadGames(options: FetchOptions = {}): Promise<GameRow[]> 
         temperatureF,
         windSpeedMph: numOrNull(row.wind),
         weatherType: classifyWeather(row.roof ?? "", temperatureF),
+        // Fails safe: a missing/malformed value skips forecasting rather
+        // than defaulting to "Home" and risking a wrong-stadium forecast.
+        location: row.location || "",
+        stadiumId: row.stadium_id || null,
+        gametime: row.gametime || null,
       };
     });
 }
@@ -434,7 +453,8 @@ export async function loadDepthChartsForSeasons(
 // Injury reports
 // ---------------------------------------------------------------------------
 
-export type InjuryReportStatus = "questionable" | "doubtful" | "out";
+/** Alias kept for this file's own readability; identical to the engine's `InjuryStatus`. */
+export type InjuryReportStatus = InjuryStatus;
 
 export interface InjuryReportRow {
   season: number;

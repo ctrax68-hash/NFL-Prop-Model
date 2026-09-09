@@ -7,6 +7,7 @@ import { PlayerAvatar } from "@/components/PlayerAvatar";
 import { EdgeMeter } from "@/components/EdgeMeter";
 import { Card, EdgeBadge, SectionHeading, SyntheticWarning } from "@/components/ui";
 import { getLineHistory, getSlate, slateKeyForProp } from "@/lib/data";
+import { playerSlug } from "@/lib/seo";
 import { densityCurve } from "@/lib/engine/distribution";
 import { isDiscreteStat } from "@/lib/engine/types";
 import {
@@ -193,7 +194,12 @@ export default async function PropDetailPage({
           <PlayerAvatar url={player.headshotUrl} name={player.name} size={56} />
           <div className="min-w-0 flex-1">
             <h1 className="display truncate text-[22px] font-black text-[var(--ink)]">
-              {player.name}
+              <Link
+                href={`/players/${playerSlug(player.name, player.playerId)}`}
+                className="transition-colors hover:text-[var(--gold)]"
+              >
+                {player.name}
+              </Link>
             </h1>
             <p className="mt-0.5 text-xs text-[var(--ink-mute)]">
               {player.position} · {player.teamId} {isHome ? "vs" : "@"} {opponent}

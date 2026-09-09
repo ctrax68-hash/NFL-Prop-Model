@@ -18,6 +18,7 @@ import type { PropType } from "../engine/types";
 import type { SlateSnapshot, SlateSummary } from "../pipeline/types";
 import { summarise } from "../pipeline/types";
 import type {
+  AlertSubscription,
   ClosingLine,
   LineHistoryPoint,
   PlacedBet,
@@ -507,6 +508,128 @@ export class SupabaseSlateStore implements SlateStore {
 
     if (error) throw new Error(`Could not remove watched prop: ${error.message}`);
   }
+
+  async listAlertSubscriptions(userId: string): Promise<AlertSubscription[]> {
+    const { data, error } = await this.client
+      .from("alert_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Could not list alert subscriptions: ${error.message}`);
+
+    return (data ?? []).map(rowToAlertSubscription);
+  }
+
+  async upsertAlertSubscription(
+    sub: Omit<
+      AlertSubscription,
+      | "id"
+      | "createdAt"
+      | "lastNotifiedLineValue"
+      | "lastNotifiedOddsOver"
+      | "lastNotifiedOddsUnder"
+      | "lastNotifiedAt"
+    >,
+  ): Promise<void> {
+    const { error } = await this.client.from("alert_subscriptions").upsert(
+      {
+        user_id: sub.userId,
+        game_id: sub.gameId,
+        player_id: sub.playerId,
+        prop_type: sub.propType,
+        season: sub.season,
+        week: sub.week,
+        player_name: sub.playerName,
+        team_id: sub.teamId,
+        // (Re)subscribing resets the notification baseline — the next
+        // difference the cron sees, however small, is worth a first alert.
+        last_notified_line_value: null,
+        last_notified_odds_over: null,
+        last_notified_odds_under: null,
+        last_notified_at: null,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,game_id,player_id,prop_type" },
+    );
+
+    if (error) throw new Error(`Could not save alert subscription: ${error.message}`);
+  }
+
+  async removeAlertSubscription(
+    userId: string,
+    gameId: string,
+    playerId: string,
+    propType: PropType,
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("alert_subscriptions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("game_id", gameId)
+      .eq("player_id", playerId)
+      .eq("prop_type", propType);
+
+    if (error) throw new Error(`Could not remove alert subscription: ${error.message}`);
+  }
+
+  async removeAlertSubscriptionById(id: string): Promise<void> {
+    const { error } = await this.client.from("alert_subscriptions").delete().eq("id", id);
+    if (error) throw new Error(`Could not remove alert subscription: ${error.message}`);
+  }
+
+  async listAllAlertSubscriptions(
+    season: number,
+    week: number,
+  ): Promise<AlertSubscription[]> {
+    const { data, error } = await this.client
+      .from("alert_subscriptions")
+      .select("*")
+      .eq("season", season)
+      .eq("week", week);
+
+    if (error) throw new Error(`Could not list alert subscriptions: ${error.message}`);
+
+    return (data ?? []).map(rowToAlertSubscription);
+  }
+
+  async markAlertNotified(
+    id: string,
+    lineValue: number,
+    oddsOverAmerican: number,
+    oddsUnderAmerican: number,
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("alert_subscriptions")
+      .update({
+        last_notified_line_value: lineValue,
+        last_notified_odds_over: oddsOverAmerican,
+        last_notified_odds_under: oddsUnderAmerican,
+        last_notified_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) throw new Error(`Could not mark alert notified: ${error.message}`);
+  }
+}
+
+function rowToAlertSubscription(row: Record<string, unknown>): AlertSubscription {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    gameId: row.game_id as string,
+    playerId: row.player_id as string,
+    propType: row.prop_type as PropType,
+    season: row.season as number,
+    week: row.week as number,
+    playerName: row.player_name as string,
+    teamId: row.team_id as string,
+    lastNotifiedLineValue: row.last_notified_line_value as number | null,
+    lastNotifiedOddsOver: row.last_notified_odds_over as number | null,
+    lastNotifiedOddsUnder: row.last_notified_odds_under as number | null,
+    lastNotifiedAt: row.last_notified_at as string | null,
+    createdAt: row.created_at as string,
+  };
 }
 
 export { summarise };

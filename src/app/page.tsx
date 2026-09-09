@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PropBoard } from "@/components/PropBoard";
 import { Ticker } from "@/components/Ticker";
 import {
@@ -8,9 +10,20 @@ import {
   SyntheticWarning,
 } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
-import { buildBoardRows, getSlate, listWatchedProps } from "@/lib/data";
+import {
+  buildBoardRows,
+  getSlate,
+  listAlertSubscriptions,
+  listWatchedProps,
+} from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "NFL Player Prop Board",
+  description:
+    "Every NFL player prop this week, priced and projected against sportsbook lines with fractional-Kelly bet sizing.",
+};
 
 export default async function BoardPage({
   searchParams,
@@ -36,6 +49,7 @@ export default async function BoardPage({
   const rows = buildBoardRows(snapshot);
   const user = await getCurrentUser();
   const watchedProps = user ? await listWatchedProps(user.id) : [];
+  const alertSubscriptions = user ? await listAlertSubscriptions(user.id) : [];
   const totalUnits = snapshot.recommendations.reduce(
     (sum, bet) => sum + bet.kelly.recommendedUnits,
     0,
@@ -118,6 +132,7 @@ export default async function BoardPage({
           week={snapshot.week}
           user={user}
           watchedProps={watchedProps}
+          alertSubscriptions={alertSubscriptions}
         />
       </div>
 
