@@ -192,12 +192,15 @@ export default function MethodologyPage() {
           </table>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-[var(--ink-dim)]">
-          Measured on 2023-24: switching receiving and rushing yards to a
-          gamma distribution cut projection bias from -7.3pp to -1.5pp and
-          -7.4pp to -2.3pp respectively. The same change applied to passing
-          yards made it worse (+4.0pp to +8.1pp), which is why passing stays
-          on the symmetric family instead of one distribution being forced
-          onto every stat.
+          Measured on the full 2023-2025 pool once three seasons became
+          available (a single season on the QB-only passing stat is noisy
+          enough that 2025 alone actually favoured the opposite choice,
+          purely from sampling variance): switching receiving and rushing
+          yards to a gamma distribution cuts projection bias from -7.9pp to
+          -1.4pp and -7.1pp to -1.6pp respectively. The same change applied
+          to passing yards makes it worse (-0.8pp to +3.2pp), which is why
+          passing stays on the symmetric family instead of one distribution
+          being forced onto every stat.
         </p>
       </Card>
 

@@ -349,11 +349,18 @@ export const DEFAULT_CONFIG: EngineConfig = {
   },
 
   distribution: {
-    // Gamma for the skill-position stats, measured over 2023-24: it cut
-    // receiving-yards bias from -7.3pp to -1.5pp and rushing from -7.4pp to
-    // -2.3pp, moving each median/line ratio from ~0.83 to ~0.95. The same
-    // change applied to passing yards made it worse (+4.0pp -> +8.1pp), which
-    // is why this is per-stat and passing stays on the symmetric family.
+    // Gamma for the skill-position stats. Originally measured on 2023-24
+    // alone (receiving -7.3pp -> -1.5pp, rushing -7.4pp -> -2.3pp, passing
+    // worse at +4.0pp -> +8.1pp) — re-measured on the full 2023-2025 pool
+    // once 2025 became available as a third season, since a single season on
+    // the QB-only passing stat (n≈550-1100) is noisy enough that 2025 alone
+    // actually favoured gamma for passing (the opposite conclusion) purely
+    // from sampling variance. Pooling three seasons resolves that: receiving
+    // -7.9pp -> -1.4pp, rushing -7.1pp -> -1.6pp, passing -0.8pp -> +3.2pp
+    // (n=9018/4552/1667) — same conclusion as the original 2023-24 read, now
+    // on a sample too large for either single season's noise to flip it.
+    // This is why the choice is per-stat and passing stays on the symmetric
+    // family.
     yards: {
       receiving_yards: "gamma",
       rushing_yards: "gamma",
