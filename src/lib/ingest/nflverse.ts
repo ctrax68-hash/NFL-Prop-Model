@@ -429,3 +429,85 @@ export async function loadDepthChartsForSeasons(
   );
   return batches.flat();
 }
+
+// ---------------------------------------------------------------------------
+// Injury reports
+// ---------------------------------------------------------------------------
+
+export type InjuryReportStatus = "questionable" | "doubtful" | "out";
+
+export interface InjuryReportRow {
+  season: number;
+  week: number;
+  team: string;
+  playerId: string;
+  position: string;
+  reportStatus: InjuryReportStatus | null;
+}
+
+interface RawInjuryReport {
+  season: string;
+  week: string;
+  team: string;
+  gsis_id: string;
+  position: string;
+  report_status: string;
+}
+
+function parseInjuryStatus(value: string | undefined): InjuryReportStatus | null {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "questionable":
+      return "questionable";
+    case "doubtful":
+      return "doubtful";
+    case "out":
+      return "out";
+    default:
+      // Includes "", blank (a player listed for practice-participation
+      // tracking with no game-status designation yet) and anything
+      // unrecognised — treated the same as "no signal" rather than guessed at.
+      return null;
+  }
+}
+
+/**
+ * Weekly injury/practice reports.
+ *
+ * The exact column set has already been observed to vary by season vintage —
+ * the current in-progress season's file was missing
+ * `report_secondary_injury`/`practice_secondary_injury` entirely when this
+ * was written, present in prior seasons' files — so only the columns this
+ * app actually uses (`report_status`) are read, and everything else is
+ * ignored rather than assumed present.
+ */
+export async function loadInjuries(
+  season: number,
+  options: FetchOptions = {},
+): Promise<InjuryReportRow[]> {
+  const text = await fetchCsvText(
+    `${NFLVERSE_RELEASE}/injuries/injuries_${season}.csv`,
+    options,
+  );
+  const rows = parseCsv<RawInjuryReport>(text);
+
+  return rows
+    .filter((row) => row.gsis_id && row.week)
+    .map((row) => ({
+      season: num(row.season),
+      week: num(row.week),
+      team: row.team,
+      playerId: row.gsis_id,
+      position: row.position,
+      reportStatus: parseInjuryStatus(row.report_status),
+    }));
+}
+
+export async function loadInjuriesForSeasons(
+  seasons: readonly number[],
+  options: FetchOptions = {},
+): Promise<InjuryReportRow[]> {
+  const batches = await Promise.all(
+    seasons.map((season) => loadInjuries(season, options)),
+  );
+  return batches.flat();
+}

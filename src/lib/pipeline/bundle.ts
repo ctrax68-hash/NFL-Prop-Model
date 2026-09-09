@@ -8,6 +8,7 @@
 import {
   loadDepthChartsForSeasons,
   loadGames,
+  loadInjuriesForSeasons,
   loadPlayerWeeksForSeasons,
   loadSnapCounts,
   type FetchOptions,
@@ -21,6 +22,7 @@ import {
   type TeamWeek,
 } from "../ingest/teamRates";
 import { buildDepthChartIndex, type DepthChartIndex } from "../ingest/depthChartIndex";
+import { buildInjuryIndex, type InjuryIndex } from "../ingest/injuryIndex";
 
 export interface DataBundle {
   seasons: number[];
@@ -30,6 +32,7 @@ export interface DataBundle {
   teamWeeks: TeamWeek[];
   margins: Map<string, number>;
   depthChart: DepthChartIndex;
+  injuries: InjuryIndex;
 }
 
 /** How many prior seasons of history to load alongside the target season. */
@@ -50,22 +53,26 @@ export async function loadDataBundle(
   seasons: readonly number[],
   options: FetchOptions & { includeSnapCounts?: boolean } = {},
 ): Promise<DataBundle> {
-  const [playerWeeks, games, snapBatches, depthChartRows] = await Promise.all([
-    loadPlayerWeeksForSeasons(seasons, options),
-    loadGames(options),
-    options.includeSnapCounts === false
-      ? Promise.resolve([] as SnapCountRow[][])
-      : Promise.all(
-          seasons.map((season) =>
-            // Snap counts are a nice-to-have for display; a missing season
-            // should not take the whole run down.
-            loadSnapCounts(season, options).catch(() => [] as SnapCountRow[]),
+  const [playerWeeks, games, snapBatches, depthChartRows, injuryRows] =
+    await Promise.all([
+      loadPlayerWeeksForSeasons(seasons, options),
+      loadGames(options),
+      options.includeSnapCounts === false
+        ? Promise.resolve([] as SnapCountRow[][])
+        : Promise.all(
+            seasons.map((season) =>
+              // Snap counts are a nice-to-have for display; a missing season
+              // should not take the whole run down.
+              loadSnapCounts(season, options).catch(() => [] as SnapCountRow[]),
+            ),
           ),
-        ),
-    // Same tolerance as snap counts: depth charts sharpen the projection but
-    // a missing/renamed release should not take the whole run down.
-    loadDepthChartsForSeasons(seasons, options).catch(() => []),
-  ]);
+      // Same tolerance as snap counts: depth charts sharpen the projection but
+      // a missing/renamed release should not take the whole run down.
+      loadDepthChartsForSeasons(seasons, options).catch(() => []),
+      // Same tolerance again: injury status sharpens the slate but a
+      // missing/renamed release should not take the whole run down.
+      loadInjuriesForSeasons(seasons, options).catch(() => []),
+    ]);
 
   const snapCounts = snapBatches.flat();
   const teamWeeks = aggregateTeamWeeks(playerWeeks);
@@ -78,5 +85,6 @@ export async function loadDataBundle(
     teamWeeks,
     margins: buildMarginIndex(games),
     depthChart: buildDepthChartIndex(depthChartRows, games),
+    injuries: buildInjuryIndex(injuryRows),
   };
 }
