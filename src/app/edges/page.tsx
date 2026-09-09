@@ -1,9 +1,17 @@
+import type { Metadata } from "next";
+
 import { Card, EmptyState, SectionHeading, SyntheticWarning } from "@/components/ui";
 import { PickRow } from "@/components/PickRow";
 import { buildBoardRows, getSlate } from "@/lib/data";
 import { teamLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Biggest NFL Prop Betting Edges",
+  description:
+    "Every priced NFL player prop this week, ranked by the model's edge over the sportsbook's de-vigged fair price.",
+};
 
 const PREVIEW_COUNT = 50;
 

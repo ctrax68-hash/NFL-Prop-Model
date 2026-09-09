@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
@@ -10,6 +11,12 @@ import { getBacktest } from "@/lib/data";
 import { formatPercent, formatSignedUnits } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "NFL Prop Model Backtest & Calibration",
+  description:
+    "Historical replay of the model's prop recommendations, graded against real NFL results — hit rate, ROI and calibration by edge bucket.",
+};
 
 export default async function BacktestPage() {
   const result = await getBacktest();

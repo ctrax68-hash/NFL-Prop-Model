@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PropBoard } from "@/components/PropBoard";
 import { Ticker } from "@/components/Ticker";
 import {
@@ -16,6 +18,12 @@ import {
 } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "NFL Player Prop Board",
+  description:
+    "Every NFL player prop this week, priced and projected against sportsbook lines with fractional-Kelly bet sizing.",
+};
 
 export default async function BoardPage({
   searchParams,

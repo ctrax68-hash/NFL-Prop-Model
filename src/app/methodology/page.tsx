@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -8,6 +9,12 @@ import { PROP_LABELS } from "@/lib/format";
 import type { ContinuousStatType, StatType } from "@/lib/engine/types";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "How the NFL Prop Model Works",
+  description:
+    "A full, config-sourced walkthrough of the statistical model behind every projection: baselines, priors, distribution families and variance — not a trained ML model, and not hidden.",
+};
 
 const YARDS_STATS: ContinuousStatType[] = [
   "receiving_yards",

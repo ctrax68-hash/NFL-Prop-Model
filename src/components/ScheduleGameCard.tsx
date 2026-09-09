@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
 
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
 import { teamLabel } from "@/lib/format";
+import { gameSlug } from "@/lib/seo";
 import { Card, WeatherBadge } from "./ui";
 import { PickRow } from "./PickRow";
 
@@ -37,11 +39,14 @@ export function ScheduleGameCard({
   return (
     <Card className={clsx("p-4", finished && "opacity-55")}>
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <span className="min-w-0 text-sm font-bold text-[var(--ink)]">
+        <Link
+          href={`/games/${gameSlug(game.gameId)}`}
+          className="min-w-0 text-sm font-bold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+        >
           {teamLabel(game.awayTeam)}{" "}
           <span className="text-[var(--ink-mute)]">@</span>{" "}
           {teamLabel(game.homeTeam)}
-        </span>
+        </Link>
         <span className="flex shrink-0 items-center gap-1.5">
           <WeatherBadge
             weatherType={game.weatherType}
