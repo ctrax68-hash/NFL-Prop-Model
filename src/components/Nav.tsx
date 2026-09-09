@@ -145,6 +145,15 @@ export function Nav({
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-2">
+          {/* A trust/transparency page, not a primary destination — a quiet
+              text link here rather than a LINKS entry with equal visual
+              weight to Schedule/Board/Edges. */}
+          <Link
+            href="/methodology"
+            className="hidden shrink-0 text-xs font-medium text-[var(--ink-mute)] transition-colors hover:text-[var(--ink)] lg:inline"
+          >
+            Methodology
+          </Link>
           {/* The picker reads the URL, and `useSearchParams` needs a boundary
               so the statically prerendered 404 can still build. */}
           <Suspense fallback={null}>

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   BucketBars,
   CalibrationChart,
@@ -54,6 +56,12 @@ export default async function BacktestPage() {
           {summary.bets.toLocaleString()} bets · {result.voidedProps.toLocaleString()} props
           voided
         </p>
+        <Link
+          href="/methodology"
+          className="mt-1 inline-block text-xs font-medium text-[var(--ink-mute)] underline decoration-dotted transition-colors hover:text-[var(--ink)]"
+        >
+          How the model that produced these numbers actually works →
+        </Link>
       </div>
 
       {/* The most important thing on this page: what these numbers do and do
