@@ -37,6 +37,7 @@ function snapshotFixture(): Pick<SlateSnapshot, "players" | "games"> {
         season: 2025,
         week: 10,
         gameday: "2025-11-09",
+        kickoffAt: null,
         homeTeam: "KC",
         awayTeam: "BUF",
         spreadHome: -2.5,

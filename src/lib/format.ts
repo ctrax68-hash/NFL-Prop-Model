@@ -77,6 +77,43 @@ export function teamLabel(teamId: string): string {
   return teamId.toUpperCase();
 }
 
+/**
+ * "Sun, Sep 13 · 1:00 PM EDT" in the given zone, or just "Sun, Sep 13" when
+ * there is no kickoff instant. The date-only form is formatted in UTC on
+ * purpose: `gameday` is a calendar date, and reading it in a western zone
+ * would shift it back a day.
+ */
+export function formatKickoff(
+  kickoffAt: string | null | undefined,
+  gameday: string,
+  timeZone = "America/New_York",
+): string {
+  if (kickoffAt) {
+    const at = new Date(kickoffAt);
+    if (!Number.isNaN(at.getTime())) {
+      const day = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone,
+      }).format(at);
+      const time = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+        timeZone,
+      }).format(at);
+      return `${day} · ${time}`;
+    }
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${gameday}T00:00:00Z`));
+}
+
 /** "CIN @ BAL" from the game id nflverse uses. */
 export function matchupLabel(
   homeTeam: string,

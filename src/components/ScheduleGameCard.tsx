@@ -9,6 +9,7 @@ import type { SlateGame } from "@/lib/pipeline/types";
 import { teamLabel } from "@/lib/format";
 import { gameSlug } from "@/lib/seo";
 import { Card, WeatherBadge } from "./ui";
+import { Kickoff } from "./Kickoff";
 import { PickRow } from "./PickRow";
 
 const PREVIEW_COUNT = 5;
@@ -37,30 +38,43 @@ export function ScheduleGameCard({
   const rest = picks.slice(PREVIEW_COUNT);
 
   return (
-    <Card className={clsx("p-4", finished && "opacity-55")}>
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <Link
-          href={`/games/${gameSlug(game.gameId)}`}
-          className="min-w-0 text-sm font-bold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
-        >
-          {teamLabel(game.awayTeam)}{" "}
-          <span className="text-[var(--ink-mute)]">@</span>{" "}
-          {teamLabel(game.homeTeam)}
-        </Link>
-        <span className="flex shrink-0 items-center gap-1.5">
+    <Card className={clsx("min-w-0 p-4", finished && "opacity-55")}>
+      <div className="mb-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <Link
+            href={`/games/${gameSlug(game.gameId)}`}
+            className="min-w-0 text-sm font-bold text-[var(--ink)] transition-colors hover:text-[var(--gold)]"
+          >
+            {teamLabel(game.awayTeam)}{" "}
+            <span className="text-[var(--ink-mute)]">@</span>{" "}
+            {teamLabel(game.homeTeam)}
+          </Link>
+          {finished ? (
+            <span className="eyebrow shrink-0 font-bold text-[var(--ink-mute)]">
+              FINAL {game.awayScore}-{game.homeScore}
+            </span>
+          ) : (
+            <Kickoff
+              kickoffAt={game.kickoffAt ?? null}
+              gameday={game.gameday}
+              className="eyebrow shrink-0 text-right text-[var(--ink-mute)]"
+            />
+          )}
+        </div>
+        <div className="mt-1.5 flex items-center gap-1.5">
           <WeatherBadge
             weatherType={game.weatherType}
             windSpeedMph={game.windSpeedMph}
             temperatureF={game.temperatureF}
           />
           {finished ? (
-            <span className="eyebrow font-bold text-[var(--ink-mute)]">
-              FINAL {game.awayScore}-{game.homeScore}
-            </span>
-          ) : (
-            <span className="eyebrow text-[var(--ink-mute)]">{game.gameday}</span>
-          )}
-        </span>
+            <Kickoff
+              kickoffAt={game.kickoffAt ?? null}
+              gameday={game.gameday}
+              className="eyebrow text-[var(--ink-mute)]"
+            />
+          ) : null}
+        </div>
       </div>
 
       {preview.length === 0 ? (

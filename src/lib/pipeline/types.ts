@@ -24,6 +24,12 @@ export interface SlateGame {
   season: number;
   week: number;
   gameday: string;
+  /**
+   * Kickoff as a UTC ISO instant; null while nflverse has no time published.
+   * Snapshots generated before this field existed simply lack the key, so
+   * readers use `?? null`.
+   */
+  kickoffAt: string | null;
   homeTeam: string;
   awayTeam: string;
   spreadHome: number;

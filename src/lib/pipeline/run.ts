@@ -20,6 +20,7 @@ import { computeBaselines, type PlayerRecord } from "../ingest/baselines";
 import { computeDefenseRates } from "../ingest/defense";
 import { computeTeamRates } from "../ingest/teamRates";
 import { compareSeasonWeek, type SeasonWeek } from "../ingest/asOf";
+import { kickoffInstant } from "../ingest/kickoff";
 import type { PropsProvider } from "../ingest/props/provider";
 import { SyntheticPropsProvider } from "../ingest/props/synthetic";
 import type { DataBundle } from "./bundle";
@@ -152,6 +153,7 @@ export async function runPipeline(
       season: game.season,
       week: game.week,
       gameday: game.gameday,
+      kickoffAt: kickoffInstant(game.gameday, game.gametime),
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
       spreadHome: game.spreadHome!,
