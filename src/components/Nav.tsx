@@ -75,7 +75,7 @@ export function Nav({
   const pathname = usePathname();
 
   return (
-    <header className="chrome sticky top-0 z-30 border-b border-[var(--border)]">
+    <header className="chrome pt-safe sticky top-0 z-30 border-b border-[var(--border)]">
       {/* Gold filament along the bottom edge. */}
       <div
         aria-hidden
