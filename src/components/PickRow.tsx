@@ -6,7 +6,7 @@ import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format
 import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 
-type LiveStatus = "won" | "lost" | "pending";
+export type LiveStatus = "won" | "lost" | "pending";
 
 /**
  * Whether a pick has already been decided by the live total.
@@ -16,8 +16,11 @@ type LiveStatus = "won" | "lost" | "pending";
  * the total passes the line and an UNDER is lost at the same moment. The other
  * two outcomes — an UNDER holding, an OVER falling short — are only known once
  * the game is over, which is what `final` says.
+ *
+ * Exported so `ScheduleGameCard` can tally hits/misses across a whole card's
+ * recommended picks using the exact same rule this file uses per row.
  */
-function liveStatus(
+export function liveStatus(
   side: BoardRow["bestSide"],
   live: number,
   line: number,
