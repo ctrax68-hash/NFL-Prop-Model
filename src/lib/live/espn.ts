@@ -25,6 +25,7 @@
 import { fetchWithTimeout } from "../ingest/fetchWithTimeout";
 import { normaliseName } from "../text";
 import type { PropType } from "../engine/types";
+import type { SlateGame } from "../pipeline/types";
 import type { LiveGameResponse, LiveGameState, LivePlayerLine } from "./types";
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
@@ -102,13 +103,21 @@ export function parseGameId(
 
 // --- Fetch -------------------------------------------------------------
 
-/** Every event on ESPN's board for a week, unfiltered. */
+/**
+ * Every event on ESPN's board for a week, unfiltered.
+ *
+ * `no-store`: this is also called from the Schedule page (a `force-dynamic`
+ * route) to decide whether a just-finished game should sink to the bottom of
+ * the list — the one thing that fix can't tolerate is Next's fetch cache
+ * quietly serving back the same "still in progress" scoreboard on a later
+ * request.
+ */
 export async function fetchEspnScoreboard(
   season: number,
   week: number,
 ): Promise<RawEspnScoreboard> {
   const url = `${ESPN_BASE}/scoreboard?year=${season}&week=${week}&seasontype=2`;
-  const res = await fetchWithTimeout(url, FETCH_TIMEOUT_MS);
+  const res = await fetchWithTimeout(url, FETCH_TIMEOUT_MS, { cache: "no-store" });
   if (!res.ok) throw new Error(`ESPN scoreboard returned ${res.status}`);
   return (await res.json()) as RawEspnScoreboard;
 }
@@ -139,6 +148,40 @@ export async function fetchLiveGame(gameId: string): Promise<LiveGameResponse | 
 
   const summary = await fetchEspnSummary(event.id);
   return { game: state, players: parseBoxscore(summary) };
+}
+
+/**
+ * Which of a week's games ESPN already calls over, independent of the
+ * pipeline's own grading — the persisted slate only gets `homeScore`/
+ * `awayScore` once the weekly pipeline re-runs (see
+ * `.github/workflows/scrape-and-store.yml`'s cron), which can lag a real
+ * result by days for anything outside that schedule. The Schedule page's
+ * per-card live poll already papers over this for each card's own display;
+ * this is the same signal fetched once for the whole week so the page's
+ * "games left" count and sort order can agree with what the cards already
+ * show, without waiting for the next pipeline run.
+ *
+ * Best-effort: ESPN's endpoint is unofficial and unauthenticated (same
+ * caveat as the rest of this file), so any failure here — a thrown request,
+ * a shape ESPN changed — just degrades to an empty set rather than a broken
+ * Schedule page.
+ */
+export async function fetchPostGameIds(
+  season: number,
+  week: number,
+  games: readonly Pick<SlateGame, "gameId" | "awayTeam" | "homeTeam">[],
+): Promise<Set<string>> {
+  try {
+    const scoreboard = await fetchEspnScoreboard(season, week);
+    const post = new Set<string>();
+    for (const game of games) {
+      const event = findEvent(scoreboard, game.awayTeam, game.homeTeam);
+      if (event && parseGameState(event).status === "post") post.add(game.gameId);
+    }
+    return post;
+  } catch {
+    return new Set();
+  }
 }
 
 // --- Parse (pure, tested against a recorded fixture) ------------------

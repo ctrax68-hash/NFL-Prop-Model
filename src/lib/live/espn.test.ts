@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  fetchEspnScoreboard,
+  fetchPostGameIds,
   findEvent,
   parseBoxscore,
   parseGameId,
@@ -214,5 +216,61 @@ describe("parseBoxscore", () => {
   it("returns an empty list for an empty box score", () => {
     expect(parseBoxscore({} as RawEspnSummary)).toEqual([]);
     expect(parseBoxscore({ boxscore: {} })).toEqual([]);
+  });
+});
+
+describe("fetchEspnScoreboard", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("never lets Next's fetch cache serve back a stale scoreboard", async () => {
+    const fetchMock: typeof fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ events: [] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchEspnScoreboard(2026, 1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const init = vi.mocked(fetchMock).mock.calls[0][1];
+    expect(init?.cache).toBe("no-store");
+  });
+});
+
+describe("fetchPostGameIds", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("flags a game ESPN already calls final, even though the persisted slate hasn't graded it, and leaves in-progress/pregame games out", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(SCOREBOARD), { status: 200 })),
+    );
+
+    const ids = await fetchPostGameIds(2025, 18, [
+      { gameId: "2025_18_NE_SEA", awayTeam: "NE", homeTeam: "SEA" }, // "in" on the board
+      { gameId: "2025_18_PHI_WAS", awayTeam: "PHI", homeTeam: "WAS" }, // "post" (WSH alias)
+      { gameId: "2025_18_DEN_KC", awayTeam: "DEN", homeTeam: "KC" }, // "pre" on the board
+      { gameId: "2025_18_BUF_MIA", awayTeam: "BUF", homeTeam: "MIA" }, // not on the board at all
+    ]);
+
+    expect(ids).toEqual(new Set(["2025_18_PHI_WAS"]));
+  });
+
+  it("degrades to an empty set — not a thrown error — when ESPN's fetch fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("site.api.espn.com unreachable");
+      }),
+    );
+
+    const ids = await fetchPostGameIds(2025, 18, [
+      { gameId: "2025_18_NE_SEA", awayTeam: "NE", homeTeam: "SEA" },
+    ]);
+
+    expect(ids).toEqual(new Set());
   });
 });
