@@ -318,7 +318,17 @@ body {
 }
 
 /* Safe areas — the bottom tab bar and slip sit on the iPhone home
-   indicator without these. */
+   indicator without these, and the top header sits under the status bar /
+   camera cutout without this one. `viewportFit: "cover"` (layout.tsx) is what
+   lets the tab bar reach the very edge, but it also means the page draws
+   under the status bar/notch by default — this claws that strip back for
+   whatever sits at the top. Resolves to 0px on any device without a cutout
+   and in a regular (non-standalone) browser tab, so it only changes anything
+   for the case it's fixing. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
