@@ -44,11 +44,37 @@ const PILL_TINT: Record<LiveStatus, string> = {
 };
 
 /**
+ * Marks a recommended row — the model's actual play, not just a priced prop —
+ * so it stands out from the wall of other numbers on the same card at a
+ * glance, before anyone reads the stake or the edge badge. Same gold as the
+ * stake text and the Nav logo's glow: this app's "gold" is a deliberate brand
+ * colour, not literal yellow (see the note at the top of globals.css).
+ */
+function RecommendedStar() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="size-3.5 shrink-0"
+      style={{ filter: "drop-shadow(0 0 3px rgba(77,163,255,0.65))" }}
+    >
+      <path
+        fill="var(--gold)"
+        d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+      />
+    </svg>
+  );
+}
+
+/**
  * One priced market: player, prop, line and edge, tap-to-bet.
  *
  * Shared between the Schedule tab's per-game cards and the public game and
  * player pages so the views can't drift into different row designs for the
  * same underlying {@link BoardRow}.
+ *
+ * A recommended row — the model's actual play — carries a gold star next to
+ * the name so it stands out from every other priced prop on the same card.
  *
  * While a game is live the row grows a fourth line carrying the player's
  * running total for the stat. It gets its own line, and never wraps, so the
@@ -94,6 +120,7 @@ export function PickRow({
       <PlayerAvatar url={row.headshotUrl} name={row.playerName} size={32} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-[var(--ink)]">
+          {row.isRecommended ? <RecommendedStar /> : null}
           <span className="truncate">{row.playerName}</span>
           <span className="shrink-0 text-[11px] font-medium text-[var(--ink-mute)]">
             {row.position}
