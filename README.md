@@ -109,7 +109,10 @@ The Schedule tab also shows a live score and, for each priced prop, that
 player's running total for the stat once a game has kicked off — polled
 client-side from ESPN's public (unofficial, unauthenticated) site API, joined
 to a prop by team and player name since ESPN carries no gsis_id
-(`src/lib/live/espn.ts`). This is a scoreboard, not a second opinion: it never
+(`src/lib/live/espn.ts`). Rows go green or red as that total decides the pick:
+an over is a hit the moment the total passes the line, an under a miss at the
+same moment, and the reverse cases settle only once the game is over. This is a
+scoreboard, not a second opinion: it never
 feeds the projection engine, changes a price, or gets persisted anywhere —
 re-projecting a game in progress is a different, unbuilt model.
 
