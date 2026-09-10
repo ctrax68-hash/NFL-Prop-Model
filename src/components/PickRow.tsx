@@ -100,14 +100,10 @@ export function PickRow({
         <span className="eyebrow block text-[var(--ink-mute)]">
           {PROP_SHORT[row.propType]} · {subtitle ?? row.opponentLabel}
         </span>
-        <span className="numeric block text-[11px] text-[var(--ink-dim)]">
+        {/* Single line, always: with the stake in here too it was one
+            character over a phone's width and wrapped on recommended rows. */}
+        <span className="numeric block truncate text-[11px] text-[var(--ink-dim)]">
           proj {row.projectedValue.toFixed(1)} · model {formatPercent(modelProb, 0)}
-          {row.isRecommended ? (
-            <span className="font-bold text-[var(--gold)]">
-              {" "}
-              · {formatUnits(row.recommendedUnits)}
-            </span>
-          ) : null}
         </span>
         {liveValue != null && status ? (
           <span
@@ -147,6 +143,12 @@ export function PickRow({
             row.bestSide === "over" ? row.oddsOverAmerican : row.oddsUnderAmerican,
           )}
         </span>
+        {/* Line, price, stake: the three betting numbers stacked together. */}
+        {row.isRecommended ? (
+          <span className="block font-bold text-[var(--gold)]">
+            {formatUnits(row.recommendedUnits)}
+          </span>
+        ) : null}
       </span>
       <EdgeBadge edge={row.bestEdge} className="shrink-0" />
     </Link>
