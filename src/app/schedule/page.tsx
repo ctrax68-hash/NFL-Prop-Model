@@ -5,6 +5,7 @@ import { Card, EmptyState, SyntheticWarning } from "@/components/ui";
 import { buildBoardRows, getSlate } from "@/lib/data";
 import type { BoardRow } from "@/lib/data";
 import type { SlateGame } from "@/lib/pipeline/types";
+import { fetchPostGameIds } from "@/lib/live/espn";
 
 export const dynamic = "force-dynamic";
 
@@ -46,13 +47,23 @@ export default async function SchedulePage({
 
   const rows = buildBoardRows(snapshot);
 
+  // Cross-checked against ESPN below (`effectivelyFinished`) so a game that
+  // finished outside the pipeline's own cron schedule still sinks to the
+  // bottom and drops out of "games left" the same day — not just once the
+  // slate is next re-graded. `isFinished` itself (persisted-score-only)
+  // still governs what each card renders — see `effectivelyFinished`'s
+  // doc-comment below.
+  const postGameIds = await fetchPostGameIds(snapshot.season, snapshot.week, snapshot.games);
+  const effectivelyFinished = (game: SlateGame) =>
+    isFinished(game) || postGameIds.has(game.gameId);
+
   // Games still to be played, soonest first; finished games trail behind them
   // in the same chronological order rather than dropping off the page. Both
   // keys are ISO strings, so a kickoff instant and a bare date sort together.
   const kickoffKey = (game: SlateGame) => game.kickoffAt ?? game.gameday;
   const games = [...snapshot.games].sort((a, b) => {
-    const aFinished = isFinished(a);
-    const bFinished = isFinished(b);
+    const aFinished = effectivelyFinished(a);
+    const bFinished = effectivelyFinished(b);
     if (aFinished !== bFinished) return aFinished ? 1 : -1;
     return (
       kickoffKey(a).localeCompare(kickoffKey(b)) || a.gameId.localeCompare(b.gameId)
@@ -66,7 +77,7 @@ export default async function SchedulePage({
     else rowsByGame.set(row.gameId, [row]);
   }
 
-  const upcomingCount = games.filter((g) => !isFinished(g)).length;
+  const upcomingCount = games.filter((g) => !effectivelyFinished(g)).length;
 
   return (
     <div className="space-y-4">
