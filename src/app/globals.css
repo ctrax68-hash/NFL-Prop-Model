@@ -78,8 +78,14 @@
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
-* {
-  border-color: var(--border);
+/* In the base layer, like preflight's own border-color reset, so that utility
+   classes (`border-[…]`, `hover:border-[…]`) can still override it. Left
+   unlayered this rule out-cascades every one of them, whatever their
+   specificity, and every hover border in the app silently does nothing. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 /*
@@ -125,12 +131,16 @@ body {
   letter-spacing: -0.02em;
 }
 
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
+/* Layered so a `text-[…]` utility next to it wins — `eyebrow text-[var(--mint)]`
+   is used all over for coloured labels, and unlayered this colour beat all of them. */
+@layer components {
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
 }
 
 .display {

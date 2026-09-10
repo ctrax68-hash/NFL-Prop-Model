@@ -30,7 +30,8 @@ const PREVIEW_COUNT = 5;
  * the game, score plus a live clock (polled from ESPN — see
  * `src/lib/live/espn.ts`) once it starts, or FINAL plus the original kickoff
  * once it's over. Each pick row also shows that player's current total for
- * the stat next to the line while the game is live. This is a scoreboard,
+ * the stat while the game is live, and turns green or red as the total
+ * decides the pick (see `PickRow`). This is a scoreboard,
  * not a second opinion: nothing it shows ever changes a projection, a price
  * or a recommendation.
  */
@@ -51,6 +52,9 @@ export function ScheduleGameCard({
     finished,
   });
   const inProgress = !finished && live != null && live.game.status !== "pre";
+  // ESPN says it's over but the slate hasn't been graded yet: totals are
+  // settled, so unders and unreached overs can be called on the rows.
+  const liveFinal = inProgress && live!.game.status === "post";
 
   const liveByPlayer = useMemo(() => {
     if (!live) return null;
@@ -99,13 +103,19 @@ export function ScheduleGameCard({
                   {teamLabel(game.awayTeam)} {live!.game.awayScore ?? 0} &ndash;{" "}
                   {teamLabel(game.homeTeam)} {live!.game.homeScore ?? 0}
                 </span>
-                <span className="eyebrow flex items-center gap-1 text-[var(--mint)]">
-                  <span
-                    aria-hidden
-                    className="pulse-dot inline-block size-1.5 rounded-full bg-[var(--mint)]"
-                  />
-                  {live!.game.detail || "Live"}
-                </span>
+                {liveFinal ? (
+                  <span className="eyebrow font-bold text-[var(--ink-mute)]">
+                    {live!.game.detail || "Final"}
+                  </span>
+                ) : (
+                  <span className="eyebrow flex items-center gap-1 text-[var(--mint)]">
+                    <span
+                      aria-hidden
+                      className="pulse-dot inline-block size-1.5 rounded-full bg-[var(--mint)]"
+                    />
+                    {live!.game.detail || "Live"}
+                  </span>
+                )}
               </>
             ) : (
               <Kickoff
@@ -132,12 +142,22 @@ export function ScheduleGameCard({
       ) : (
         <div className="space-y-1.5">
           {preview.map((row) => (
-            <PickRow key={row.propId} row={row} liveValue={liveValueFor(row)} />
+            <PickRow
+              key={row.propId}
+              row={row}
+              liveValue={liveValueFor(row)}
+              liveFinal={liveFinal}
+            />
           ))}
 
           {expanded
             ? rest.map((row) => (
-                <PickRow key={row.propId} row={row} liveValue={liveValueFor(row)} />
+                <PickRow
+                  key={row.propId}
+                  row={row}
+                  liveValue={liveValueFor(row)}
+                  liveFinal={liveFinal}
+                />
               ))
             : null}
 
