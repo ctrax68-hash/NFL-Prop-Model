@@ -12,7 +12,7 @@ import { gameSlug } from "@/lib/seo";
 import { useLiveGame } from "@/lib/live/useLiveGame";
 import { Card, WeatherBadge } from "./ui";
 import { Kickoff } from "./Kickoff";
-import { PickRow } from "./PickRow";
+import { PickRow, liveStatus } from "./PickRow";
 
 const PREVIEW_COUNT = 5;
 
@@ -31,7 +31,9 @@ const PREVIEW_COUNT = 5;
  * `src/lib/live/espn.ts`) once it starts, or FINAL plus the original kickoff
  * once it's over. Each pick row also shows that player's current total for
  * the stat while the game is live, and turns green or red as the total
- * decides the pick (see `PickRow`). This is a scoreboard,
+ * decides the pick (see `PickRow`). Once every recommended pick on the card
+ * has a live verdict, a running "N/M hits" tally sits under the FINAL detail
+ * line. This is a scoreboard,
  * not a second opinion: nothing it shows ever changes a projection, a price
  * or a recommendation.
  */
@@ -67,6 +69,26 @@ export function ScheduleGameCard({
     if (!inProgress || !liveByPlayer) return null;
     return liveByPlayer.get(normaliseName(row.playerName))?.stats[row.propType] ?? null;
   };
+
+  // How the model's actual plays (not every priced prop — just the ones with
+  // a stake) came out, once the live feed has enough to call every one of
+  // them. Rows ESPN has no matching stat for don't count either way, same as
+  // the per-row display.
+  const recommendedTally = useMemo(() => {
+    if (!liveFinal) return null;
+    let hits = 0;
+    let decided = 0;
+    for (const row of picks) {
+      if (!row.isRecommended) continue;
+      const value = liveValueFor(row);
+      if (value == null) continue;
+      const status = liveStatus(row.bestSide, value, row.lineValue, true);
+      decided += 1;
+      if (status === "won") hits += 1;
+    }
+    return decided > 0 ? { hits, decided } : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- liveValueFor closes over inProgress/liveByPlayer, both already in this list.
+  }, [liveFinal, picks, inProgress, liveByPlayer]);
 
   const preview = picks.slice(0, PREVIEW_COUNT);
   const rest = picks.slice(PREVIEW_COUNT);
@@ -104,9 +126,25 @@ export function ScheduleGameCard({
                   {teamLabel(game.homeTeam)} {live!.game.homeScore ?? 0}
                 </span>
                 {liveFinal ? (
-                  <span className="eyebrow font-bold text-[var(--ink-mute)]">
-                    {live!.game.detail || "Final"}
-                  </span>
+                  <>
+                    <span className="eyebrow font-bold text-[var(--ink-mute)]">
+                      {live!.game.detail || "Final"}
+                    </span>
+                    {recommendedTally ? (
+                      <span
+                        className={clsx(
+                          "eyebrow numeric font-bold",
+                          recommendedTally.hits === recommendedTally.decided
+                            ? "text-[var(--mint)]"
+                            : recommendedTally.hits === 0
+                              ? "text-[var(--ember)]"
+                              : "text-[var(--ink-mute)]",
+                        )}
+                      >
+                        {recommendedTally.hits}/{recommendedTally.decided} hits
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
                   <span className="eyebrow flex items-center gap-1 text-[var(--mint)]">
                     <span
