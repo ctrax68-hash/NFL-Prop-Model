@@ -9,8 +9,22 @@
  * every existing `@/lib/data` import keeps working unchanged.
  */
 
+import { grade, type Outcome } from "./backtest/outcome";
 import { marketKey, type InjuryStatus } from "./engine/types";
 import type { SlateSnapshot } from "./pipeline/types";
+
+/**
+ * How a market's chosen side (`bestSide`/`lineValue`) actually turned out,
+ * once the pipeline has graded the week — the same "won"/"lost"/"push" a
+ * placed bet settles as, plus "void" for a player who never took the field
+ * (see `PropActual`). `null` while the game hasn't graded yet — display-only,
+ * live in-game tracking is a separate concern (`liveValue`, computed
+ * client-side from ESPN, never stored on the row).
+ */
+export interface BoardRowSettlement {
+  actualValue: number | null;
+  outcome: Outcome | "void";
+}
 
 /** One book's price on a market, everything needed to bet against it. */
 export interface BoardRowBook {
@@ -50,6 +64,8 @@ export interface BoardRow extends BoardRowBook {
   headshotUrl: string | null;
   opponentLabel: string;
   gameday: string;
+  /** UTC ISO instant, or null while nflverse has no time published yet. */
+  kickoffAt: string | null;
   propType: SlateSnapshot["props"][number]["propType"];
   projectedValue: number;
   sigma: number;
@@ -57,6 +73,7 @@ export interface BoardRow extends BoardRowBook {
   injuryStatus?: InjuryStatus;
   /** Every book quoting this market, best edge first. Length 1 outside a multi-book feed. */
   books: BoardRowBook[];
+  settled: BoardRowSettlement | null;
 }
 
 export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
@@ -66,6 +83,7 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
   const recByProp = new Map(
     snapshot.recommendations.map((r) => [r.propId, r]),
   );
+  const actualByProp = new Map(snapshot.actuals.map((a) => [a.propId, a]));
 
   interface Joined {
     marketKey: string;
@@ -134,6 +152,17 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
     const game = gameById.get(gameId);
     if (!player || !game) continue;
 
+    const actual = actualByProp.get(best.propId);
+    const settled: BoardRowSettlement | null =
+      !actual
+        ? null
+        : actual.actualValue == null
+          ? { actualValue: null, outcome: "void" }
+          : {
+              actualValue: actual.actualValue,
+              outcome: grade(best.bestSide, best.lineValue, actual.actualValue),
+            };
+
     rows.push({
       ...best,
       gameId,
@@ -147,11 +176,13 @@ export function buildBoardRows(snapshot: SlateSnapshot): BoardRow[] {
           ? `vs ${game.awayTeam}`
           : `@ ${game.homeTeam}`,
       gameday: game.gameday,
+      kickoffAt: game.kickoffAt ?? null,
       propType: entries[0].propType,
       projectedValue: entries[0].projectedValue,
       sigma: entries[0].sigma,
       injuryStatus: player.injuryStatus,
       books,
+      settled,
     });
   }
 

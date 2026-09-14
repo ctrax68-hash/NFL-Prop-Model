@@ -5,42 +5,17 @@ import type { BoardRow } from "@/lib/data";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
 import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { LiveStatusPill, liveStatus, type LiveStatus } from "./LiveStatusPill";
 
-export type LiveStatus = "won" | "lost" | "pending";
-
-/**
- * Whether a pick has already been decided by the live total.
- *
- * Every priced stat (yards, receptions, attempts, completions) only ever goes
- * up during a game and every line is X.5, so an OVER is clinched the moment
- * the total passes the line and an UNDER is lost at the same moment. The other
- * two outcomes — an UNDER holding, an OVER falling short — are only known once
- * the game is over, which is what `final` says.
- *
- * Exported so `ScheduleGameCard` can tally hits/misses across a whole card's
- * recommended picks using the exact same rule this file uses per row.
- */
-export function liveStatus(
-  side: BoardRow["bestSide"],
-  live: number,
-  line: number,
-  final: boolean,
-): LiveStatus {
-  const passed = live > line;
-  if (side === "over") return passed ? "won" : final ? "lost" : "pending";
-  return passed ? "lost" : final ? "won" : "pending";
-}
+// Re-exported so `ScheduleGameCard`'s existing `import { PickRow, liveStatus }
+// from "./PickRow"` keeps working — the canonical definitions now live in
+// `LiveStatusPill.tsx`, shared with `PropRow` (Edges tab).
+export { liveStatus, type LiveStatus };
 
 const ROW_TINT: Record<LiveStatus, string | false> = {
   won: "border-[rgba(53,227,159,0.45)] bg-[rgba(53,227,159,0.06)] hover:border-[var(--mint)]",
   lost: "border-[rgba(255,90,110,0.45)] bg-[rgba(255,90,110,0.06)] hover:border-[var(--ember)]",
   pending: false,
-};
-
-const PILL_TINT: Record<LiveStatus, string> = {
-  won: "bg-[rgba(53,227,159,0.12)] text-[var(--mint)]",
-  lost: "bg-[rgba(255,90,110,0.12)] text-[var(--ember)]",
-  pending: "bg-[var(--obsidian-3)] text-[var(--mint)]",
 };
 
 /**
@@ -135,33 +110,13 @@ export function PickRow({
         <span className="numeric block truncate text-[11px] text-[var(--ink-dim)]">
           proj {row.projectedValue.toFixed(1)} · model {formatPercent(modelProb, 0)}
         </span>
-        {liveValue != null && status ? (
-          <span
-            data-live-row
-            className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[11px]"
-          >
-            <span
-              className={clsx(
-                "numeric inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-1.5 py-px font-bold",
-                PILL_TINT[status],
-              )}
-            >
-              <span
-                aria-hidden
-                className={clsx(
-                  "inline-block size-1 rounded-full bg-current",
-                  status === "pending" && "pulse-dot",
-                )}
-              />
-              {liveValue} so far
-            </span>
-            <span className="numeric text-[var(--ink-mute)]">/ {row.lineValue}</span>
-            {status === "won" ? (
-              <span className="eyebrow font-bold text-[var(--mint)]">Hit</span>
-            ) : status === "lost" ? (
-              <span className="eyebrow font-bold text-[var(--ember)]">Miss</span>
-            ) : null}
-          </span>
+        {liveValue != null ? (
+          <LiveStatusPill
+            liveValue={liveValue}
+            lineValue={row.lineValue}
+            bestSide={row.bestSide}
+            liveFinal={liveFinal}
+          />
         ) : null}
       </span>
       <span className="numeric shrink-0 text-right text-xs text-[var(--ink-dim)]">

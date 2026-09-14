@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PropBoard } from "@/components/PropBoard";
+import { SeasonRecordBanner } from "@/components/SeasonRecordBanner";
 import { Ticker } from "@/components/Ticker";
 import {
   Card,
@@ -66,6 +67,8 @@ export default async function BoardPage({
       <div className="-mx-3 -mt-4 sm:-mx-4">
         <Ticker rows={rows} />
       </div>
+
+      <SeasonRecordBanner record={snapshot.seasonRecord} />
 
       {/* On a phone the hero is a cost, not a feature: every pixel here is a
           pixel of board the user has to scroll past. The display type and the

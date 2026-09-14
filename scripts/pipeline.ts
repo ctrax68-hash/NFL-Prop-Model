@@ -26,6 +26,7 @@ import { createStore } from "../src/lib/db/factory";
 import type { SlateStore } from "../src/lib/db/store";
 import { buildCalibrationMonitor, driftWarnings } from "../src/lib/calibration/monitor";
 import { loadBacktestReference } from "../src/lib/calibration/reference";
+import { buildSeasonRecord } from "../src/lib/calibration/seasonRecord";
 import { carryForwardMissingProps } from "../src/lib/pipeline/carryForward";
 import { loadDataBundle, seasonsToLoad, type DataBundle } from "../src/lib/pipeline/bundle";
 import { gradeSnapshot } from "../src/lib/pipeline/grade";
@@ -95,8 +96,15 @@ async function main(): Promise<void> {
 
   const reference = await loadBacktestReference();
   const monitor = buildCalibrationMonitor(graded, reference, { season, week });
-  const snapshot: SlateSnapshot =
+  const withCalibration: SlateSnapshot =
     monitor.weeks.length > 0 ? { ...withHistory, calibration: monitor } : withHistory;
+
+  // Every graded week of the season, not `graded`'s 6-week lookback — this is
+  // a running record, not a drift check, so there's no reason to cap it.
+  const seasonSnapshots = await loadGradedWeeksForSeason(store, season, week);
+  const seasonRecord = buildSeasonRecord([...seasonSnapshots, withCalibration], season);
+  const snapshot: SlateSnapshot =
+    seasonRecord != null ? { ...withCalibration, seasonRecord } : withCalibration;
 
   await store.saveSnapshot(snapshot);
 
@@ -142,6 +150,19 @@ async function main(): Promise<void> {
   } else {
     console.log("");
     console.log("Calibration check: no graded weeks yet this season.");
+  }
+
+  if (snapshot.seasonRecord) {
+    const r = snapshot.seasonRecord.record;
+    console.log("");
+    console.log(
+      `Season record (WK ${snapshot.seasonRecord.weeks.join(", ")}` +
+        `${snapshot.seasonRecord.propsAreReal ? "" : " — SYNTHETIC, not a real result"}): ` +
+        `${r.wins}-${r.losses}${r.pushes > 0 ? `-${r.pushes}` : ""} ` +
+        `(${(r.hitRate * 100).toFixed(1)}%), ` +
+        `${r.unitsProfit >= 0 ? "+" : ""}${r.unitsProfit.toFixed(2)}u, ` +
+        `ROI ${r.roi >= 0 ? "+" : ""}${(r.roi * 100).toFixed(1)}%`,
+    );
   }
 
   if (!snapshot.propsAreReal) {
@@ -210,6 +231,31 @@ async function gradeEarlierWeeks(
     for (const note of notes) console.log(note);
   }
   return graded.sort((a, b) => a.week - b.week);
+}
+
+/**
+ * Every already-graded week of `season`, for the season record —
+ * deliberately uncapped, unlike `gradeEarlierWeeks`'s `GRADE_LOOKBACK_WEEKS`
+ * window: a week that fell out of the lookback still graded successfully on
+ * an earlier run (that's the only way it got marked `graded` in the first
+ * place — see `gradeEarlierWeeks`/`summarise`), so it's still sitting in the
+ * store with its actuals attached. Excludes `week` itself — that's the one
+ * this run is still pricing, and its own graded/ungraded snapshot-in-progress
+ * (`withCalibration`) is folded in separately by the caller.
+ */
+async function loadGradedWeeksForSeason(
+  store: SlateStore,
+  season: number,
+  week: number,
+): Promise<SlateSnapshot[]> {
+  const slates = await store.listSlates();
+  const targets = slates.filter(
+    (s) => s.season === season && s.week !== week && s.graded,
+  );
+  const snapshots = await Promise.all(
+    targets.map((s) => store.loadSnapshot(s.season, s.week)),
+  );
+  return snapshots.filter((s): s is SlateSnapshot => s != null);
 }
 
 function printMonitor(monitor: NonNullable<SlateSnapshot["calibration"]>): void {

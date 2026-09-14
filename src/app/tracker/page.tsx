@@ -7,6 +7,7 @@ import { Card, EmptyState, SectionHeading, Stat } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { getClosingLine, listBets } from "@/lib/data";
 import type { ClosingLine, PlacedBet } from "@/lib/db/store";
+import { SETTLEMENT_TINT } from "@/lib/settlementColors";
 import { DEFAULT_CONFIG } from "@/lib/engine/config";
 import { closingLineValue } from "@/lib/engine/edge";
 import {
@@ -23,11 +24,10 @@ import {
 export const dynamic = "force-dynamic";
 
 const STATUS_STYLES: Record<PlacedBet["status"], string> = {
+  // A placed bet has a state a graded prop never does — nothing yet to win,
+  // lose, push or void against.
   pending: "bg-[var(--obsidian-3)] text-[var(--gold)] ring-1 ring-[rgba(255,194,75,0.3)]",
-  won: "bg-[rgba(53,227,159,0.12)] text-[var(--mint)]",
-  lost: "bg-[rgba(255,90,110,0.12)] text-[var(--ember)]",
-  push: "bg-[var(--obsidian-3)] text-[var(--ink-dim)]",
-  void: "bg-[var(--obsidian-3)] text-[var(--ink-mute)]",
+  ...SETTLEMENT_TINT,
 };
 
 /**
