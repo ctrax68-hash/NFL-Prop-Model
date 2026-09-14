@@ -8,6 +8,7 @@ import { Bell, ChevronDown, Star } from "lucide-react";
 import type { BoardRow, BoardRowBook } from "@/lib/data";
 import type { Side } from "@/lib/engine/types";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
+import { ClosingStatusPill, LiveStatusPill } from "./LiveStatusPill";
 import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { useBetSlip, type SlipLeg } from "./BetSlipProvider";
@@ -93,6 +94,8 @@ export function PropRow({
   onToggleWatch,
   isAlertSubscribed = false,
   onToggleAlert,
+  liveValue,
+  liveFinal = false,
 }: {
   row: BoardRow;
   season: number;
@@ -104,6 +107,11 @@ export function PropRow({
   /** Only present for a signed-in user — logged-out visitors see no bell. */
   isAlertSubscribed?: boolean;
   onToggleAlert?: () => void;
+  /** This player's live in-game total for this stat, while the game is in
+   * progress and the week hasn't graded yet. Display only. */
+  liveValue?: number | null;
+  /** True once the live feed reports the game over. */
+  liveFinal?: boolean;
 }) {
   const slip = useBetSlip();
   const [expanded, setExpanded] = useState(false);
@@ -188,6 +196,20 @@ export function PropRow({
               </button>
             ) : null}
           </div>
+          {row.settled ? (
+            <ClosingStatusPill
+              actualValue={row.settled.actualValue}
+              lineValue={row.lineValue}
+              outcome={row.settled.outcome}
+            />
+          ) : liveValue != null ? (
+            <LiveStatusPill
+              liveValue={liveValue}
+              lineValue={row.lineValue}
+              bestSide={row.bestSide}
+              liveFinal={liveFinal}
+            />
+          ) : null}
         </div>
 
         <div className="relative z-[2] flex shrink-0 items-center gap-1.5">

@@ -19,6 +19,7 @@ import type {
   WeatherType,
 } from "../engine/types";
 import type { CalibrationMonitor } from "../calibration/monitor";
+import type { SeasonRecord } from "../calibration/seasonRecord";
 import type { SigmaRefitReport } from "./sigmaRefit";
 
 export interface SlateGame {
@@ -119,6 +120,13 @@ export interface SlateSnapshot {
    * still holding. Absent until the pipeline has graded a completed week.
    */
   calibration?: CalibrationMonitor;
+  /**
+   * The model's W-L/units/ROI record on its own recommended picks, every
+   * graded week of this season folded in (not the 6-week lookback
+   * `calibration` uses). Absent until the pipeline has graded a completed
+   * week — see `src/lib/calibration/seasonRecord.ts`.
+   */
+  seasonRecord?: SeasonRecord;
 }
 
 export interface SlateSummary {

@@ -15,8 +15,9 @@ import { SyntheticPropsProvider } from "../ingest/props/synthetic";
 import type { DataBundle } from "../pipeline/bundle";
 import { runPipeline } from "../pipeline/run";
 import type { SlateSnapshot } from "../pipeline/types";
+import { grade, type Outcome } from "./outcome";
 
-export type Outcome = "won" | "lost" | "push";
+export { grade, type Outcome };
 
 export interface GradedBet {
   season: number;
@@ -241,12 +242,6 @@ export async function runBacktest(
   };
 }
 
-export function grade(side: Side, line: number, actual: number): Outcome {
-  if (actual === line) return "push";
-  const wentOver = actual > line;
-  return (side === "over") === wentOver ? "won" : "lost";
-}
-
 export function profit(
   outcome: Outcome,
   units: number,
@@ -259,7 +254,7 @@ export function profit(
   return units * multiple;
 }
 
-function bucketise(label: string, bets: readonly GradedBet[]): Bucket {
+export function bucketise(label: string, bets: readonly GradedBet[]): Bucket {
   let wins = 0;
   let losses = 0;
   let pushes = 0;

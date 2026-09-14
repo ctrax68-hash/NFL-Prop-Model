@@ -7,6 +7,8 @@ import type { CurrentUser } from "@/lib/auth";
 import type { AlertSubscription, WatchedProp } from "@/lib/db/store";
 import { marketKey, type PropType } from "@/lib/engine/types";
 import { PROP_LABELS } from "@/lib/format";
+import { normaliseName } from "@/lib/text";
+import { useLiveGames, type LiveGameTarget } from "@/lib/live/useLiveGames";
 import { PropRow } from "./PropRow";
 import { Card, Pill, SectionHeading } from "./ui";
 import { WatchingSection } from "./WatchingSection";
@@ -47,6 +49,38 @@ export function PropBoard({
   const [minEdge, setMinEdge] = useState(0);
   const [sort, setSort] = useState<SortKey>("edge");
   const [query, setQuery] = useState("");
+
+  // One poll per game on the slate, not one per row — see useLiveGames.ts.
+  // A game counts as "finished" here once every row currently loaded for it
+  // has a settled result; that's just the initial gate on whether to start
+  // polling at all — useLiveGames stops polling any individual game the
+  // moment ESPN itself reports it over, regardless of this flag.
+  const gameTargets = useMemo<LiveGameTarget[]>(() => {
+    const byGame = new Map<string, BoardRow[]>();
+    for (const row of rows) {
+      const list = byGame.get(row.gameId);
+      if (list) list.push(row);
+      else byGame.set(row.gameId, [row]);
+    }
+    return [...byGame.entries()].map(([gameId, gameRows]) => ({
+      gameId,
+      kickoffAt: gameRows[0].kickoffAt,
+      finished: gameRows.every((r) => r.settled != null),
+    }));
+  }, [rows]);
+
+  const liveGames = useLiveGames(gameTargets);
+
+  const liveValueFor = (row: BoardRow): number | null => {
+    if (row.settled) return null; // already graded — nothing left to track live
+    const live = liveGames.get(row.gameId);
+    if (!live || live.game.status === "pre") return null;
+    const player = live.players.find((p) => p.key === normaliseName(row.playerName));
+    return player?.stats[row.propType] ?? null;
+  };
+
+  const liveFinalFor = (row: BoardRow): boolean =>
+    liveGames.get(row.gameId)?.game.status === "post";
 
   const [watched, setWatched] = useState<Map<string, WatchedProp>>(
     () =>
@@ -346,6 +380,8 @@ export function PropBoard({
                 marketKey(row.gameId, row.playerId, row.propType),
               )}
               onToggleAlert={user ? () => toggleAlert(row) : undefined}
+              liveValue={liveValueFor(row)}
+              liveFinal={liveFinalFor(row)}
             />
           ))
         )}
