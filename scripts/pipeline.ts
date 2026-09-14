@@ -26,6 +26,7 @@ import { createStore } from "../src/lib/db/factory";
 import type { SlateStore } from "../src/lib/db/store";
 import { buildCalibrationMonitor, driftWarnings } from "../src/lib/calibration/monitor";
 import { loadBacktestReference } from "../src/lib/calibration/reference";
+import { carryForwardMissingProps } from "../src/lib/pipeline/carryForward";
 import { loadDataBundle, seasonsToLoad, type DataBundle } from "../src/lib/pipeline/bundle";
 import { gradeSnapshot } from "../src/lib/pipeline/grade";
 import { runPipeline } from "../src/lib/pipeline/run";
@@ -75,10 +76,27 @@ async function main(): Promise<void> {
     refitSigma,
   });
 
+  // A real book pulls a game's markets the moment it kicks off, so re-running
+  // this same week later in the week (the Mon/Thu/Sun cron does exactly
+  // that) would otherwise silently lose every prop already priced for
+  // whichever games have since started — see carryForward.ts for the full
+  // story and the production incident that prompted this.
+  const previousSnapshot = await store.loadSnapshot(season, week);
+  const { snapshot: withHistory, carriedPropIds } = carryForwardMissingProps(
+    previousSnapshot,
+    priced,
+  );
+  if (carriedPropIds.length > 0) {
+    console.log(
+      `Carried forward ${carriedPropIds.length} prop(s) whose market disappeared this run ` +
+        "(game already started/finished) so they stay visible for the rest of the season.",
+    );
+  }
+
   const reference = await loadBacktestReference();
   const monitor = buildCalibrationMonitor(graded, reference, { season, week });
   const snapshot: SlateSnapshot =
-    monitor.weeks.length > 0 ? { ...priced, calibration: monitor } : priced;
+    monitor.weeks.length > 0 ? { ...withHistory, calibration: monitor } : withHistory;
 
   await store.saveSnapshot(snapshot);
 
