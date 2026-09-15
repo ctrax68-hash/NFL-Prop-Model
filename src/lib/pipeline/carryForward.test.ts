@@ -5,7 +5,7 @@ import type { PropEvaluation } from "../engine/edge";
 import type { BetCandidate, RejectedCandidate } from "../engine/selection";
 import type { PropLine } from "../engine/types";
 import { carryForwardMissingProps } from "./carryForward";
-import type { PropActual, SlateSnapshot } from "./types";
+import type { SlateSnapshot } from "./types";
 
 /** A minimal, valid snapshot — only `props`/`evaluations`/`recommendations`/
  * `rejected`/`actuals` vary between tests; everything else is filler this
@@ -103,10 +103,6 @@ function rejected(propId: string): RejectedCandidate {
   return { propId, side: "over", reason: "below edge threshold" };
 }
 
-function actual(propId: string): PropActual {
-  return { propId, playerId: "player-1", propType: "receiving_yards", actualValue: 71, status: "graded" };
-}
-
 describe("carryForwardMissingProps", () => {
   it("returns the fresh snapshot unchanged when there is no previous run", () => {
     const fresh = snapshot({ props: [prop("a")] });
@@ -131,7 +127,7 @@ describe("carryForwardMissingProps", () => {
     expect(carriedPropIds).toEqual([]);
   });
 
-  it("carries forward a prop that vanished from the fresh run, with its evaluation, recommendation, rejection and actual", () => {
+  it("carries forward a prop that vanished from the fresh run, with its evaluation and recommendation, but not its actual", () => {
     // "a" is a game that has since finished — its market is gone from the
     // fresh fetch. "b" is a still-open game the fresh run still covers.
     const previous = snapshot({
@@ -139,7 +135,9 @@ describe("carryForwardMissingProps", () => {
       evaluations: [evaluation("a"), evaluation("b")],
       recommendations: [recommendation("a")],
       rejected: [rejected("b")],
-      actuals: [actual("a")],
+      actuals: [
+        { propId: "a", playerId: "player-1", propType: "receiving_yards", actualValue: null, status: "did-not-play" },
+      ],
     });
     const fresh = snapshot({
       props: [prop("b")],
@@ -155,7 +153,9 @@ describe("carryForwardMissingProps", () => {
     expect(result.props.map((p) => p.propId).sort()).toEqual(["a", "b"]);
     expect(result.evaluations.map((e) => e.propId).sort()).toEqual(["a", "b"]);
     expect(result.recommendations.map((r) => r.propId)).toEqual(["a"]);
-    expect(result.actuals.map((a) => a.propId)).toEqual(["a"]);
+    // Actuals are never carried — the caller recomputes them fresh over the
+    // full merged props list instead (see carryForward.ts's doc comment).
+    expect(result.actuals).toBe(fresh.actuals);
     // "b"'s rejection was already in `fresh` — carrying forward must not
     // duplicate it.
     expect(result.rejected).toHaveLength(1);

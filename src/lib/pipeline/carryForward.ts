@@ -25,6 +25,18 @@
  * data (`run.ts`), not the odds provider, so they stay complete every run
  * regardless of a game finishing — merging them would be a no-op at best and
  * risks masking a real regression at worst.
+ *
+ * `actuals` are deliberately NOT carried forward here either, unlike every
+ * other array. Carrying a prop's actual verbatim used to mean a market that
+ * disappeared mid-week kept whatever grade an earlier run had computed for
+ * it *before that run's own props existed* — for the large majority of a
+ * week, that grade was a false "did-not-play", since a game that hasn't been
+ * played yet has no stat row for anyone on it. That false grade never got
+ * revisited once the real game finished, because nothing else re-touches a
+ * prop's actual once it has one. The caller (`scripts/pipeline.ts`) instead
+ * recomputes `actuals` fresh, from the current run's own bundle, over the
+ * *full* merged props list this function returns — always current, never
+ * carried.
  */
 
 import type { SlateSnapshot } from "./types";
@@ -58,10 +70,9 @@ export function carryForwardMissingProps(
   const carriedRecommendations = previous.recommendations.filter((r) =>
     carriedPropIds.has(r.propId),
   );
-  // RejectedCandidate and PropActual carry propId but not gameId, so this has
-  // to be a propId join rather than the gameId one the other arrays could use.
+  // RejectedCandidate carries propId but not gameId, so this has to be a
+  // propId join rather than the gameId one the other arrays could use.
   const carriedRejected = previous.rejected.filter((r) => carriedPropIds.has(r.propId));
-  const carriedActuals = previous.actuals.filter((a) => carriedPropIds.has(a.propId));
 
   return {
     snapshot: {
@@ -70,7 +81,6 @@ export function carryForwardMissingProps(
       evaluations: [...fresh.evaluations, ...carriedEvaluations],
       recommendations: [...fresh.recommendations, ...carriedRecommendations],
       rejected: [...fresh.rejected, ...carriedRejected],
-      actuals: [...fresh.actuals, ...carriedActuals],
     },
     carriedPropIds: [...carriedPropIds],
   };
