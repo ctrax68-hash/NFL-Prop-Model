@@ -263,6 +263,7 @@ export async function runPipeline(
   const actuals = buildActuals(
     bundle.playerWeeks,
     bundle.snapCounts,
+    games,
     asOf,
     props,
     new Map(players.map((player) => [player.playerId, player.name])),
@@ -417,8 +418,14 @@ const ACTUAL_ACCESSORS: Record<PropType, (row: PlayerWeek) => number> = {
 /**
  * Look up what actually happened, for grading.
  *
- * Three cases, and the distinction between the last two matters enormously:
+ * Four cases, and the distinction between the last three matters enormously:
  *
+ *   0. The prop's own game hasn't finished yet  ->  not gradable at all.
+ *      Skipped entirely (no actuals entry), not voided — a game still to be
+ *      played has no stat row and no snap row for the same reason a voided
+ *      player does, and conflating the two used to mark almost the entire
+ *      slate "did-not-play" for the days between when a stats file first
+ *      appears (its first game) and when the last game of the week finishes.
  *   1. The player has a stat row  ->  grade against it.
  *   2. No stat row, but they played offensive snaps  ->  a genuine zero. They
  *      were on the field and never got the ball, which is a legitimate under.
@@ -432,6 +439,7 @@ const ACTUAL_ACCESSORS: Record<PropType, (row: PlayerWeek) => number> = {
 export function buildActuals(
   playerWeeks: readonly PlayerWeek[],
   snapCounts: readonly SnapCountRow[],
+  games: readonly SlateGame[],
   asOf: SeasonWeek,
   props: readonly PropLine[],
   playerNames: ReadonlyMap<string, string>,
@@ -459,28 +467,36 @@ export function buildActuals(
       .map((snap) => normaliseName(snap.player)),
   );
 
-  return props.map((prop) => {
+  const gamesById = new Map(games.map((game) => [game.gameId, game]));
+
+  const actuals: PropActual[] = [];
+  for (const prop of props) {
+    const game = gamesById.get(prop.gameId);
+    if (!game || game.homeScore == null || game.awayScore == null) continue;
+
     const row = byPlayer.get(prop.playerId);
     if (row) {
-      return {
+      actuals.push({
         propId: prop.propId,
         playerId: prop.playerId,
         propType: prop.propType,
         actualValue: ACTUAL_ACCESSORS[prop.propType](row),
-        status: "graded" as const,
-      };
+        status: "graded",
+      });
+      continue;
     }
 
     const name = playerNames.get(prop.playerId) ?? "";
     const played = playedSnaps.has(normaliseName(name));
 
-    return {
+    actuals.push({
       propId: prop.propId,
       playerId: prop.playerId,
       propType: prop.propType,
       actualValue: played ? 0 : null,
-      status: played ? ("graded" as const) : ("did-not-play" as const),
-    };
-  });
+      status: played ? "graded" : "did-not-play",
+    });
+  }
+  return actuals;
 }
 

@@ -21,6 +21,7 @@ export function gradeSnapshot(
   const actuals = buildActuals(
     bundle.playerWeeks,
     bundle.snapCounts,
+    snapshot.games,
     { season: snapshot.season, week: snapshot.week },
     snapshot.props,
     new Map(snapshot.players.map((player) => [player.playerId, player.name])),

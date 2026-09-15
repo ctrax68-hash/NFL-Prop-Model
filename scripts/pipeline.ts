@@ -30,7 +30,7 @@ import { buildSeasonRecord } from "../src/lib/calibration/seasonRecord";
 import { carryForwardMissingProps } from "../src/lib/pipeline/carryForward";
 import { loadDataBundle, seasonsToLoad, type DataBundle } from "../src/lib/pipeline/bundle";
 import { gradeSnapshot } from "../src/lib/pipeline/grade";
-import { runPipeline } from "../src/lib/pipeline/run";
+import { buildActuals, runPipeline } from "../src/lib/pipeline/run";
 import type { SlateSnapshot } from "../src/lib/pipeline/types";
 import { createPropsProvider } from "../src/lib/ingest/props/factory";
 import { optionalNumber, parseArgs, requireNumber } from "./lib/args";
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
   // whichever games have since started — see carryForward.ts for the full
   // story and the production incident that prompted this.
   const previousSnapshot = await store.loadSnapshot(season, week);
-  const { snapshot: withHistory, carriedPropIds } = carryForwardMissingProps(
+  const { snapshot: merged, carriedPropIds } = carryForwardMissingProps(
     previousSnapshot,
     priced,
   );
@@ -93,6 +93,23 @@ async function main(): Promise<void> {
         "(game already started/finished) so they stay visible for the rest of the season.",
     );
   }
+
+  // Actuals are recomputed fresh over the *full* merged props list (fresh +
+  // carried), not carried forward — a carried prop's game may have finished
+  // (or a stats file may have landed) since whichever earlier run priced it,
+  // and grading it against this run's own bundle is the only way that
+  // ever gets reflected. See carryForward.ts's doc comment for the incident
+  // this fixes.
+  const playerNames = new Map(merged.players.map((p) => [p.playerId, p.name]));
+  const actuals = buildActuals(
+    bundle.playerWeeks,
+    bundle.snapCounts,
+    merged.games,
+    { season, week },
+    merged.props,
+    playerNames,
+  );
+  const withHistory: SlateSnapshot = { ...merged, actuals };
 
   const reference = await loadBacktestReference();
   const monitor = buildCalibrationMonitor(graded, reference, { season, week });
