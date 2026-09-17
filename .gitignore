@@ -17,6 +17,9 @@ dist/
 .env.local
 .env*.local
 
+# scratch space for one-off debug/repair scripts, never meant to be committed
+/scratchpad_tmp/
+
 # misc
 .DS_Store
 *.pem
