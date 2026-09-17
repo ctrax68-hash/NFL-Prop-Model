@@ -171,13 +171,13 @@ export function PropRow({
             <span className="text-[var(--ink-mute)]">{row.opponentLabel}</span>
             <span className="eyebrow">{PROP_SHORT[row.propType]}</span>
           </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <EdgeBadge edge={row.bestEdge} />
-            <span className="numeric text-[11px] text-[var(--ink-mute)]">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <EdgeBadge edge={row.bestEdge} className="shrink-0" />
+            <span className="numeric shrink-0 whitespace-nowrap text-[11px] text-[var(--ink-mute)]">
               proj {row.projectedValue.toFixed(1)}
             </span>
             {row.isRecommended ? (
-              <span className="numeric text-[11px] font-bold text-[var(--gold)]">
+              <span className="numeric shrink-0 whitespace-nowrap text-[11px] font-bold text-[var(--gold)]">
                 {formatUnits(row.recommendedUnits)}
               </span>
             ) : null}
@@ -186,7 +186,7 @@ export function PropRow({
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                className="flex items-center gap-0.5 text-[11px] text-[var(--ink-mute)] transition-colors hover:text-[var(--gold)]"
+                className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] text-[var(--ink-mute)] transition-colors hover:text-[var(--gold)]"
               >
                 +{otherBooks.length} book{otherBooks.length > 1 ? "s" : ""}
                 <ChevronDown
