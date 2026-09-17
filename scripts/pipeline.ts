@@ -213,6 +213,18 @@ async function main(): Promise<void> {
  * Attach results to the stored snapshots of the preceding weeks whose games
  * have been played, and return every graded snapshot in the lookback window
  * (including ones graded on earlier runs) for the monitor.
+ *
+ * Always recomputes via `gradeSnapshot`, even for a week that already has
+ * some actuals — "has any actuals" used to mean "fully graded, skip forever,"
+ * but that's wrong for any week whose last game finishes after that week's
+ * own final pipeline run (every week with a Monday-nighter: the Monday cron
+ * fires hours before kickoff, so that game's props are correctly left
+ * ungraded that day, and the next run to touch this week at all is the
+ * following week's — by which point it's "earlier," and the old guard
+ * would skip it forever, permanently stranding that one game's props
+ * ungraded). `gradeSnapshot` is a pure recompute over the already-loaded
+ * bundle (no network calls), so re-running it on an already-fully-graded
+ * week just reproduces the same result — cheap enough to always do.
  */
 async function gradeEarlierWeeks(
   store: SlateStore,
@@ -227,16 +239,23 @@ async function gradeEarlierWeeks(
     const stored = await store.loadSnapshot(season, w);
     if (!stored || stored.props.length === 0) continue;
 
-    if (stored.actuals.length > 0) {
+    const result = gradeSnapshot(stored, bundle);
+    if (!result) {
+      // A regression (previously graded, now nothing gradable) shouldn't
+      // happen — games don't un-finish — but if it ever does, keep what's
+      // already stored rather than overwrite it with less.
+      if (stored.actuals.length > 0) graded.push(stored);
+      else notes.push(`  week ${w}: stats not published yet`);
+      continue;
+    }
+
+    if (result.actuals.length === stored.actuals.length) {
+      // Nothing new since last time this ran — same set of finished games,
+      // so no reason to write.
       graded.push(stored);
       continue;
     }
 
-    const result = gradeSnapshot(stored, bundle);
-    if (!result) {
-      notes.push(`  week ${w}: stats not published yet`);
-      continue;
-    }
     await store.updateSnapshot(result);
     graded.push(result);
     const played = result.actuals.filter((a) => a.status === "graded").length;
