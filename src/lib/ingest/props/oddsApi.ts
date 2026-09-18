@@ -14,6 +14,7 @@
  */
 
 import { fetchWithTimeout } from "../fetchWithTimeout";
+import { normaliseName } from "../../text";
 import type { PropLine, PropType } from "../../engine/types";
 import type { PropsProvider, PropsProviderContext } from "./provider";
 
@@ -251,11 +252,7 @@ export function createNameResolver(
   };
 }
 
-export function normaliseName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g, "")
-    .replace(/[^a-z]/g, "");
-}
+// Re-exported so callers that import it from this module (e.g.
+// `factory.ts`) keep working — the implementation itself lives in
+// `../../text`, shared with the ESPN live-boxscore and snap-count joins.
+export { normaliseName };
