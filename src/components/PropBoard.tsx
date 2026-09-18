@@ -76,7 +76,14 @@ export function PropBoard({
     const live = liveGames.get(row.gameId);
     if (!live || live.game.status === "pre") return null;
     const player = live.players.find((p) => p.key === normaliseName(row.playerName));
-    return player?.stats[row.propType] ?? null;
+    if (!player) return null;
+    const value = player.stats[row.propType];
+    if (value != null) return value;
+    // He's in the box score under at least one other category — proof he
+    // was active and on the field — but has no entry for this specific
+    // prop. Once the game is over that's a genuine 0, not missing data;
+    // mid-game it could just mean "hasn't happened yet."
+    return live.game.status === "post" ? 0 : null;
   };
 
   const liveFinalFor = (row: BoardRow): boolean =>
