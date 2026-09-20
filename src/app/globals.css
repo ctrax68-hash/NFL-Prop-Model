@@ -166,6 +166,12 @@ body {
 
 .chrome {
   background: var(--chrome);
+  /* Promotes the header/tab bar to their own GPU compositing layer so iOS
+     Safari tracks them independently during a fast scroll instead of
+     needing to repaint them mid-gesture — mitigates position:fixed
+     elements visibly detaching and floating over content while scrolling. */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .hairline {
