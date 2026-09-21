@@ -5,7 +5,7 @@ import type { BoardRow } from "@/lib/data";
 import { PROP_SHORT, formatOdds, formatPercent, formatUnits } from "@/lib/format";
 import { EdgeBadge, InjuryBadge } from "./ui";
 import { PlayerAvatar } from "./PlayerAvatar";
-import { LiveStatusPill, liveStatus, type LiveStatus } from "./LiveStatusPill";
+import { ClosingStatusPill, LiveStatusPill, liveStatus, type LiveStatus } from "./LiveStatusPill";
 
 // Re-exported so `ScheduleGameCard`'s existing `import { PickRow, liveStatus }
 // from "./PickRow"` keeps working — the canonical definitions now live in
@@ -78,6 +78,14 @@ export function PickRow({
   const modelProb = row.bestSide === "over" ? row.modelProbOver : row.modelProbUnder;
   const status =
     liveValue != null ? liveStatus(row.bestSide, liveValue, row.lineValue, liveFinal) : null;
+  // Once the pipeline has actually graded this prop, its final outcome takes
+  // over from the live-poll status for both the pill and the row tint below —
+  // a settled won/lost is worth colouring the same way a live one is.
+  const settledStatus: LiveStatus | null =
+    row.settled && (row.settled.outcome === "won" || row.settled.outcome === "lost")
+      ? row.settled.outcome
+      : null;
+  const tintStatus = settledStatus ?? status;
 
   return (
     <Link
@@ -86,8 +94,8 @@ export function PickRow({
         "tap flex min-h-[60px] items-center gap-2.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 transition-colors",
         // One border/background utility per state — stacking the tint on top
         // of the defaults would leave the cascade, not the status, to decide.
-        status && ROW_TINT[status]
-          ? ROW_TINT[status]
+        tintStatus && ROW_TINT[tintStatus]
+          ? ROW_TINT[tintStatus]
           : "border-[var(--border)] bg-[rgba(32,26,36,0.5)] hover:border-[var(--bronze)]",
         finished && "opacity-55",
       )}
@@ -110,7 +118,13 @@ export function PickRow({
         <span className="numeric block truncate text-[11px] text-[var(--ink-dim)]">
           proj {row.projectedValue.toFixed(1)} · model {formatPercent(modelProb, 0)}
         </span>
-        {liveValue != null ? (
+        {row.settled ? (
+          <ClosingStatusPill
+            actualValue={row.settled.actualValue}
+            lineValue={row.lineValue}
+            outcome={row.settled.outcome}
+          />
+        ) : liveValue != null ? (
           <LiveStatusPill
             liveValue={liveValue}
             lineValue={row.lineValue}
