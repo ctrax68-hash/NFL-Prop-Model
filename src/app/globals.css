@@ -337,10 +337,16 @@ body {
   bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Touch targets. Anything tappable clears 44px, the iOS minimum. */
+/* Touch targets. Anything tappable clears 44px, the iOS minimum.
+   touch-action: manipulation tells the browser this element's taps are
+   never the start of a pinch/double-tap-zoom gesture, skipping the ~300ms
+   delay mobile browsers otherwise hold every tap for while disambiguating —
+   a gesture-recognition hint only, unrelated to compositing/paint (unlike
+   transform/will-change, which is why the tab bar broke last time). */
 .tap {
   min-height: 44px;
   min-width: 44px;
+  touch-action: manipulation;
 }
 
 /* Momentum scrolling for the horizontal chip rails. */
