@@ -16,6 +16,16 @@ import { PickRow, liveStatus } from "./PickRow";
 
 const PREVIEW_COUNT = 5;
 
+/** Mint on a clean sweep, ember on a total miss, muted otherwise — shared by
+ * the live (ESPN-final) and settled (pipeline-graded) hit tallies. */
+function tallyTone(hits: number, decided: number): string {
+  return hits === decided
+    ? "text-[var(--mint)]"
+    : hits === 0
+      ? "text-[var(--ember)]"
+      : "text-[var(--ink-mute)]";
+}
+
 /**
  * One game's card: the top {@link PREVIEW_COUNT} picks up front, everything
  * else behind a tap so a slate of forty-plus markets per game doesn't turn
@@ -98,6 +108,24 @@ export function ScheduleGameCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- liveValueFor closes over inProgress/liveByPlayer, both already in this list.
   }, [liveFinal, picks, inProgress, liveByPlayer]);
 
+  // The pipeline's own graded tally, once the game has flipped from
+  // live-polled to persisted-finished — `recommendedTally` above goes silent
+  // at exactly that moment (the live poll stops), so this is what keeps the
+  // header's hit count alive after grading actually lands.
+  const settledTally = useMemo(() => {
+    if (!finished) return null;
+    let hits = 0;
+    let decided = 0;
+    for (const row of picks) {
+      if (!row.isRecommended || !row.settled) continue;
+      if (row.settled.outcome === "won" || row.settled.outcome === "lost") {
+        decided += 1;
+        if (row.settled.outcome === "won") hits += 1;
+      }
+    }
+    return decided > 0 ? { hits, decided } : null;
+  }, [finished, picks]);
+
   const preview = picks.slice(0, PREVIEW_COUNT);
   const rest = picks.slice(PREVIEW_COUNT);
 
@@ -126,6 +154,16 @@ export function ScheduleGameCard({
                   gameday={game.gameday}
                   className="eyebrow text-[var(--ink-mute)]"
                 />
+                {settledTally ? (
+                  <span
+                    className={clsx(
+                      "eyebrow numeric font-bold",
+                      tallyTone(settledTally.hits, settledTally.decided),
+                    )}
+                  >
+                    {settledTally.hits}/{settledTally.decided} hits
+                  </span>
+                ) : null}
               </>
             ) : inProgress ? (
               <>
@@ -142,11 +180,7 @@ export function ScheduleGameCard({
                       <span
                         className={clsx(
                           "eyebrow numeric font-bold",
-                          recommendedTally.hits === recommendedTally.decided
-                            ? "text-[var(--mint)]"
-                            : recommendedTally.hits === 0
-                              ? "text-[var(--ember)]"
-                              : "text-[var(--ink-mute)]",
+                          tallyTone(recommendedTally.hits, recommendedTally.decided),
                         )}
                       >
                         {recommendedTally.hits}/{recommendedTally.decided} hits
