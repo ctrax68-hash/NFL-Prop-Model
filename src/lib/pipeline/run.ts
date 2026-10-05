@@ -453,6 +453,7 @@ export function buildActuals(
   if (weekRows.length === 0) return [];
 
   const byPlayer = new Map(weekRows.map((row) => [row.playerId, row]));
+  const teamsWithStats = new Set(weekRows.map((row) => row.team));
 
   // Snap counts key on player name rather than id, so the join is by
   // normalised name. A miss here only costs us a void instead of a zero.
@@ -473,6 +474,18 @@ export function buildActuals(
   for (const prop of props) {
     const game = gamesById.get(prop.gameId);
     if (!game || game.homeScore == null || game.awayScore == null) continue;
+
+    // The score feed updates faster than nflverse's player-stats feed -- an
+    // early-finishing game (an international/early kickoff) can be marked
+    // FINAL hours before its own players' stat rows are published. Without
+    // this, every prop in that gap reads as "genuinely inactive" instead of
+    // "not graded yet." Neither team having any row at all (for a week that
+    // otherwise has data, e.g. an earlier game already played) is the signal
+    // that this specific game's stats haven't landed yet; the whole-week
+    // guard above only catches the week being entirely empty.
+    if (!teamsWithStats.has(game.homeTeam) && !teamsWithStats.has(game.awayTeam)) {
+      continue;
+    }
 
     const row = byPlayer.get(prop.playerId);
     if (row) {
