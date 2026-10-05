@@ -206,6 +206,21 @@ describe("buildActuals", () => {
     ]);
   });
 
+  it("does not void a finished game whose own teams have no stats published yet, even though the week has other data", () => {
+    const games = [
+      game("g1", { homeTeam: "WAS", awayTeam: "IND", homeScore: 13, awayScore: 30 }),
+    ];
+    const props = [prop("p4", "g1")];
+    // A different, already-published game's player -- proves the week
+    // overall has data, but not from either of g1's own teams, which is
+    // what should gate g1's props, not the week-wide check above.
+    const playerWeeks = [playerWeek("someone-else", { team: "PIT" })];
+
+    const actuals = buildActuals(playerWeeks, [], games, ASOF, props, new Map([["p4", "Marcus Mariota"]]));
+
+    expect(actuals).toEqual([]);
+  });
+
   it("skips a prop whose gameId isn't in the games list at all", () => {
     const props = [prop("p1", "unknown-game")];
     const playerWeeks = [playerWeek("p1")];
